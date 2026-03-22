@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "GoalBuddy",
+    "slug": "goalbuddy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F9F7F4"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.goalbuddy.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F9F7F4",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.goalbuddy.app"
+    },
+    "scheme": "goalbuddy",
+  }
+}
