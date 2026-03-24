@@ -1,203 +1,116 @@
-import { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, ScrollView,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../../lib/api';
-import { COLORS, GOAL_CATEGORIES } from '../../lib/constants';
+import { GOAL_CATEGORIES } from '../../lib/constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 
-type Milestone = {
+type WinItem = {
   id: string;
   title: string;
-  description: string | null;
-  due_date: string | null;
-  completed_at: string | null;
-  ai_suggested: boolean;
+  completed_at: string;
   goal_title: string;
   goal_category: string;
-  display_name?: string;
+  author_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  is_me: boolean;
 };
 
-export default function MilestonesScreen() {
-  const [tab, setTab] = useState<'mine' | 'buddies'>('mine');
-  const { user } = useAuthStore();
+export default function WinsScreen() {
+  const { colors } = useThemeStore();
+  const s = makeStyles(colors);
 
-  const { data: myMilestones = [], isLoading: loadingMine, refetch: refetchMine, isRefetching: refetchingMine } = useQuery<Milestone[]>({
-    queryKey: ['milestones', 'me'],
-    queryFn: () => apiFetch('/milestones/me'),
+  const { data: feed = [], isLoading, refetch, isRefetching } = useQuery<WinItem[]>({
+    queryKey: ['milestones', 'feed'],
+    queryFn: () => apiFetch('/milestones/feed'),
   });
-
-  const { data: buddyMilestones = [], isLoading: loadingBuddies, refetch: refetchBuddies, isRefetching: refetchingBuddies } = useQuery<Milestone[]>({
-    queryKey: ['milestones', 'buddies'],
-    queryFn: () => apiFetch('/milestones/buddies'),
-    enabled: tab === 'buddies',
-  });
-
-  const completed = myMilestones.filter((m) => m.completed_at);
-  const upcoming = myMilestones.filter((m) => !m.completed_at);
 
   return (
     <SafeAreaView style={s.container}>
-      <Text style={s.title}>Milestones</Text>
+      <Text style={s.title}>Wins</Text>
 
-      <View style={s.tabs}>
-        <TouchableOpacity style={[s.tab, tab === 'mine' && s.tabActive]} onPress={() => setTab('mine')}>
-          <Text style={[s.tabText, tab === 'mine' && s.tabTextActive]}>My Wins</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[s.tab, tab === 'buddies' && s.tabActive]} onPress={() => setTab('buddies')}>
-          <Text style={[s.tabText, tab === 'buddies' && s.tabTextActive]}>Buddy Wins</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView
+        contentContainerStyle={s.content}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+      >
+        {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
 
-      {tab === 'mine' ? (
-        <ScrollView
-          contentContainerStyle={s.content}
-          refreshControl={<RefreshControl refreshing={refetchingMine} onRefresh={refetchMine} tintColor={COLORS.primary} />}
-        >
-          {loadingMine && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />}
+        {!isLoading && feed.length === 0 && (
+          <View style={s.empty}>
+            <MaterialCommunityIcons name="trophy-outline" size={52} color={colors.border} />
+            <Text style={s.emptyTitle}>No wins yet</Text>
+            <Text style={s.emptyText}>Complete milestones and they'll show up here</Text>
+          </View>
+        )}
 
-          {completed.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>🏆 Completed</Text>
-              {completed.map((m) => <MilestoneCard key={m.id} milestone={m} done />)}
-            </View>
-          )}
-
-          {upcoming.length > 0 && (
-            <View style={s.section}>
-              <Text style={s.sectionTitle}>🎯 Upcoming</Text>
-              {upcoming.map((m) => <MilestoneCard key={m.id} milestone={m} done={false} />)}
-            </View>
-          )}
-
-          {!loadingMine && myMilestones.length === 0 && (
-            <View style={s.empty}>
-              <Text style={s.emptyIcon}>🏆</Text>
-              <Text style={s.emptyTitle}>No milestones yet</Text>
-              <Text style={s.emptyText}>Connect with a buddy and track your progress together</Text>
-            </View>
-          )}
-
-          {/* Stats summary */}
-          {!loadingMine && (
-            <View style={s.statsCard}>
-              <Text style={s.statsTitle}>Your Progress</Text>
-              <View style={s.statsRow}>
-                <StatBox icon="✅" value={completed.length} label="Completed" />
-                <StatBox icon="🎯" value={upcoming.length} label="Upcoming" />
-                <StatBox icon="✨" value={myMilestones.filter((m) => m.ai_suggested).length} label="AI Suggested" />
-              </View>
-            </View>
-          )}
-        </ScrollView>
-      ) : (
-        <ScrollView
-          contentContainerStyle={s.content}
-          refreshControl={<RefreshControl refreshing={refetchingBuddies} onRefresh={refetchBuddies} tintColor={COLORS.primary} />}
-        >
-          {loadingBuddies && <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />}
-          {buddyMilestones.map((m) => (
-            <View key={m.id} style={s.buddyCard}>
-              <View style={s.buddyCardHeader}>
-                <View style={s.avatarCircle}>
-                  <Text style={s.avatarText}>{(m.display_name || '?')[0]}</Text>
+        {feed.map((item) => {
+          const cat = GOAL_CATEGORIES.find((c) => c.key === item.goal_category);
+          const when = formatWhen(item.completed_at);
+          return (
+            <View key={item.id} style={s.card}>
+              {/* Avatar + name row */}
+              <View style={s.cardHeader}>
+                <View style={s.avatar}>
+                  <Text style={s.avatarText}>{(item.display_name || '?')[0].toUpperCase()}</Text>
                 </View>
-                <View>
-                  <Text style={s.buddyName}>{m.display_name}</Text>
-                  <Text style={s.buddyTime}>
-                    {m.completed_at ? new Date(m.completed_at).toLocaleDateString() : ''}
+                <View style={s.headerText}>
+                  <Text style={s.name}>
+                    {item.is_me ? 'You' : item.display_name}
+                    <Text style={s.nameSuffix}> completed a milestone</Text>
                   </Text>
+                  <Text style={s.when}>{when}</Text>
                 </View>
-                <Text style={s.trophy}>🏆</Text>
+                <MaterialCommunityIcons name="trophy" size={20} color={colors.primary} />
               </View>
-              <Text style={s.milestoneTitle}>{m.title}</Text>
-              <Text style={s.milestoneGoal}>
-                {GOAL_CATEGORIES.find((c) => c.key === m.goal_category)?.icon} {m.goal_title}
-              </Text>
+
+              {/* Milestone title */}
+              <Text style={s.milestoneTitle}>{item.title}</Text>
+
+              {/* Goal tag */}
+              <View style={s.goalRow}>
+                {cat && <MaterialCommunityIcons name={cat.icon as any} size={13} color={colors.textSecondary} />}
+                <Text style={s.goalText}>{item.goal_title}</Text>
+              </View>
             </View>
-          ))}
-          {!loadingBuddies && buddyMilestones.length === 0 && (
-            <View style={s.empty}>
-              <Text style={s.emptyIcon}>🤝</Text>
-              <Text style={s.emptyTitle}>No buddy wins yet</Text>
-              <Text style={s.emptyText}>When your buddies hit milestones, they'll show up here</Text>
-            </View>
-          )}
-        </ScrollView>
-      )}
+          );
+        })}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-function MilestoneCard({ milestone: m, done }: { milestone: Milestone; done: boolean }) {
-  const cat = GOAL_CATEGORIES.find((c) => c.key === m.goal_category);
-  return (
-    <View style={[s.mCard, done && s.mCardDone]}>
-      <View style={s.mCardLeft}>
-        {done ? <Text style={s.mCheck}>✅</Text> : <Text style={s.mPending}>⏳</Text>}
-      </View>
-      <View style={s.mCardBody}>
-        <Text style={s.mTitle}>{m.title}</Text>
-        <Text style={s.mGoal}>{cat?.icon} {m.goal_title}</Text>
-        {m.due_date && <Text style={s.mDate}>Due {new Date(m.due_date).toLocaleDateString()}</Text>}
-        {m.ai_suggested && <Text style={s.aiTag}>✨ AI suggested</Text>}
-      </View>
-    </View>
-  );
+function formatWhen(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
-function StatBox({ icon, value, label }: { icon: string; value: number; label: string }) {
-  return (
-    <View style={s.statBox}>
-      <Text style={s.statIcon}>{icon}</Text>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  title: { fontSize: 26, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  tabs: { flexDirection: 'row', marginHorizontal: 20, marginBottom: 12, backgroundColor: COLORS.card, borderRadius: 12, padding: 4 },
-  tab: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
-  tabActive: { backgroundColor: COLORS.primary },
-  tabText: { fontWeight: '600', color: COLORS.textSecondary },
-  tabTextActive: { color: '#fff' },
-  content: { padding: 16, gap: 16 },
-  section: { gap: 10 },
-  sectionTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
-  empty: { alignItems: 'center', paddingTop: 60 },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  emptyText: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4, textAlign: 'center' },
-  mCard: { backgroundColor: COLORS.card, borderRadius: 14, padding: 14, flexDirection: 'row', gap: 12 },
-  mCardDone: { borderLeftWidth: 3, borderLeftColor: COLORS.primary },
-  mCardLeft: { justifyContent: 'flex-start' },
-  mCheck: { fontSize: 20 },
-  mPending: { fontSize: 20 },
-  mCardBody: { flex: 1, gap: 2 },
-  mTitle: { fontSize: 15, fontWeight: '600', color: COLORS.text },
-  mGoal: { fontSize: 12, color: COLORS.textSecondary },
-  mDate: { fontSize: 12, color: COLORS.textSecondary },
-  aiTag: { fontSize: 11, color: COLORS.primary, fontWeight: '600' },
-  statsCard: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, gap: 12 },
-  statsTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  statBox: { alignItems: 'center', gap: 4 },
-  statIcon: { fontSize: 24 },
-  statValue: { fontSize: 22, fontWeight: '700', color: COLORS.text },
-  statLabel: { fontSize: 12, color: COLORS.textSecondary },
-  buddyCard: { backgroundColor: COLORS.card, borderRadius: 14, padding: 16, gap: 8 },
-  buddyCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatarCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontWeight: '700', color: COLORS.primary },
-  buddyName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  buddyTime: { fontSize: 12, color: COLORS.textSecondary },
-  trophy: { marginLeft: 'auto', fontSize: 22 },
-  milestoneTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text },
-  milestoneGoal: { fontSize: 13, color: COLORS.textSecondary },
+const makeStyles = (colors: any) => StyleSheet.create({
+  container:      { flex: 1, backgroundColor: colors.background },
+  title:          { fontSize: 26, fontWeight: '700', color: colors.text, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
+  content:        { padding: 16, gap: 12, paddingBottom: 32 },
+  empty:          { alignItems: 'center', paddingTop: 60, gap: 12 },
+  emptyTitle:     { fontSize: 18, fontWeight: '700', color: colors.text },
+  emptyText:      { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+  card:           { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: colors.border },
+  cardHeader:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar:         { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  avatarText:     { fontWeight: '700', color: colors.primary, fontSize: 16 },
+  headerText:     { flex: 1 },
+  name:           { fontSize: 14, fontWeight: '700', color: colors.text },
+  nameSuffix:     { fontWeight: '400', color: colors.textSecondary },
+  when:           { fontSize: 12, color: colors.textSecondary, marginTop: 1 },
+  milestoneTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  goalRow:        { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  goalText:       { fontSize: 13, color: colors.textSecondary },
 });

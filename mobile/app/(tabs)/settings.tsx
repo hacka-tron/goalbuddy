@@ -1,29 +1,31 @@
 import { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, Switch,
+  TextInput, Alert, ActivityIndicator,
 } from 'react-native';
 import { useMutation } from '@tanstack/react-query';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiFetch } from '../../lib/api';
-import { COLORS } from '../../lib/constants';
+import {
+  THEMES, ThemeKey, LIGHT_THEME_KEYS, DARK_THEME_KEYS,
+  PRIMARY_SWATCHES, ColorPalette,
+} from '../../lib/constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
+import { useThemeStore } from '../../store/themeStore';
 import { router } from 'expo-router';
 
 export default function SettingsScreen() {
   const { user, updateUser, logout } = useAuthStore();
+  const { colors, themeKey, customPrimary, customAccent, customDark, setTheme, setCustomColors } = useThemeStore();
   const [displayName, setDisplayName] = useState(user?.display_name || '');
   const [bio, setBio] = useState(user?.bio || '');
-  const [notifFreq, setNotifFreq] = useState(user?.notification_frequency || 'daily');
 
   const saveMutation = useMutation({
     mutationFn: () =>
-      apiFetch('/users/me', {
-        method: 'PATCH',
-        body: JSON.stringify({ displayName, bio, notificationFrequency: notifFreq }),
-      }),
+      apiFetch('/users/me', { method: 'PATCH', body: JSON.stringify({ displayName, bio }) }),
     onSuccess: (data) => {
-      updateUser({ display_name: data.display_name, bio: data.bio, notification_frequency: data.notification_frequency });
+      updateUser({ display_name: data.display_name, bio: data.bio });
       Alert.alert('Saved!');
     },
     onError: (e: Error) => Alert.alert('Error', e.message),
@@ -36,12 +38,47 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const s = makeStyles(colors);
+
+  const ThemeRow = ({ keys, label }: { keys: Exclude<ThemeKey, 'custom'>[]; label: string }) => (
+    <View style={s.themeGroup}>
+      <Text style={s.themeGroupLabel}>{label}</Text>
+      <View style={s.themeRow}>
+        {keys.map((key) => {
+          const theme = THEMES[key];
+          const active = themeKey === key;
+          return (
+            <TouchableOpacity key={key} style={s.themeOption} onPress={() => setTheme(key)}>
+              <View style={[s.themeSwatchWrap, active && { borderColor: colors.text }]}>
+                <View style={[s.themeSwatch, { backgroundColor: theme.colors.primary }]}>
+                  <View style={[s.themeSwatchInner, { backgroundColor: theme.colors.background }]} />
+                </View>
+              </View>
+              <Text style={s.themeLabel}>{theme.name}</Text>
+            </TouchableOpacity>
+          );
+        })}
+        {/* Custom swatch — only in Dark row */}
+        {label === 'Dark' && (
+          <TouchableOpacity style={s.themeOption} onPress={() => setCustomColors(customPrimary, customAccent, customDark)}>
+            <View style={[s.themeSwatchWrap, themeKey === 'custom' && { borderColor: colors.text }]}>
+              <View style={[s.themeSwatch, { backgroundColor: customPrimary }]}>
+                <View style={[s.themeSwatchInner, { backgroundColor: customDark ? '#111318' : '#F7F7F5' }]} />
+              </View>
+            </View>
+            <Text style={s.themeLabel}>Custom</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   return (
     <SafeAreaView style={s.container}>
-      <Text style={s.title}>Profile & Settings</Text>
+      <Text style={s.title}>Settings</Text>
 
       <ScrollView contentContainerStyle={s.content}>
-        {/* Avatar placeholder */}
+        {/* Avatar */}
         <View style={s.avatarSection}>
           <View style={s.avatar}>
             <Text style={s.avatarText}>{user?.display_name?.[0]?.toUpperCase()}</Text>
@@ -49,33 +86,62 @@ export default function SettingsScreen() {
           <Text style={s.username}>@{user?.username}</Text>
         </View>
 
-        {/* Profile fields */}
+        {/* Profile */}
         <View style={s.card}>
           <Text style={s.cardTitle}>Profile</Text>
           <Text style={s.label}>Display Name</Text>
-          <TextInput style={s.input} value={displayName} onChangeText={setDisplayName} placeholder="Your name" placeholderTextColor={COLORS.textSecondary} />
+          <TextInput style={s.input} value={displayName} onChangeText={setDisplayName} placeholder="Your name" placeholderTextColor={colors.textSecondary} />
           <Text style={s.label}>Bio</Text>
-          <TextInput style={[s.input, { height: 80, textAlignVertical: 'top' }]} value={bio} onChangeText={setBio} placeholder="Tell buddies about yourself..." placeholderTextColor={COLORS.textSecondary} multiline />
+          <TextInput style={[s.input, { height: 80, textAlignVertical: 'top' }]} value={bio} onChangeText={setBio} placeholder="Tell buddies about yourself..." placeholderTextColor={colors.textSecondary} multiline />
         </View>
 
-        {/* Notification preferences */}
+        {/* Theme */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>Check-in Frequency</Text>
-          {(['daily', '3x_week', 'weekly'] as const).map((freq) => (
-            <TouchableOpacity key={freq} style={s.freqOption} onPress={() => setNotifFreq(freq)}>
-              <Text style={s.freqLabel}>{freq === 'daily' ? 'Daily' : freq === '3x_week' ? '3x per week' : 'Weekly'}</Text>
-              <View style={[s.radio, notifFreq === freq && s.radioActive]}>
-                {notifFreq === freq && <View style={s.radioDot} />}
+          <Text style={s.cardTitle}>Theme</Text>
+          <ThemeRow keys={LIGHT_THEME_KEYS} label="Light" />
+          <ThemeRow keys={DARK_THEME_KEYS} label="Dark" />
+        </View>
+
+        {/* Custom theme builder — only visible when custom is active */}
+        {themeKey === 'custom' && (
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Customize</Text>
+
+            <Text style={s.swatchLabel}>Primary Color</Text>
+            <View style={s.swatchGrid}>
+              {PRIMARY_SWATCHES.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  onPress={() => setCustomColors(c, customAccent, customDark)}
+                  style={[s.swatch, { backgroundColor: c }, customPrimary === c && s.swatchActive]}
+                >
+                  {customPrimary === c && <MaterialCommunityIcons name="check" size={14} color="#fff" />}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={s.darkToggleRow}
+              onPress={() => setCustomColors(customPrimary, customAccent, !customDark)}
+            >
+              <MaterialCommunityIcons
+                name={customDark ? 'weather-night' : 'weather-sunny'}
+                size={20}
+                color={colors.textSecondary}
+              />
+              <Text style={s.darkToggleText}>{customDark ? 'Dark mode' : 'Light mode'}</Text>
+              <View style={[s.toggle, { backgroundColor: customDark ? colors.primary : colors.border }]}>
+                <View style={[s.toggleThumb, customDark && s.toggleThumbOn]} />
               </View>
             </TouchableOpacity>
-          ))}
-        </View>
+          </View>
+        )}
 
-        {/* Save */}
+        {/* Save profile */}
         <TouchableOpacity style={s.saveBtn} onPress={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending
             ? <ActivityIndicator color="#fff" />
-            : <Text style={s.saveBtnText}>Save Changes</Text>}
+            : <Text style={s.saveBtnText}>Save Profile</Text>}
         </TouchableOpacity>
 
         {/* Account */}
@@ -85,6 +151,7 @@ export default function SettingsScreen() {
         </View>
 
         <TouchableOpacity style={s.logoutBtn} onPress={handleLogout}>
+          <MaterialCommunityIcons name="logout" size={18} color={colors.accent} />
           <Text style={s.logoutText}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -92,26 +159,43 @@ export default function SettingsScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  title: { fontSize: 26, fontWeight: '700', color: COLORS.text, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  content: { padding: 16, gap: 16 },
-  avatarSection: { alignItems: 'center', paddingVertical: 8 },
-  avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { fontSize: 32, fontWeight: '700', color: COLORS.primary },
-  username: { fontSize: 15, color: COLORS.textSecondary, marginTop: 8, fontWeight: '600' },
-  card: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, gap: 10 },
-  cardTitle: { fontSize: 14, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  label: { fontSize: 13, fontWeight: '600', color: COLORS.text },
-  input: { backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, fontSize: 15, color: COLORS.text },
-  freqOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
-  freqLabel: { fontSize: 15, color: COLORS.text },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border, justifyContent: 'center', alignItems: 'center' },
-  radioActive: { borderColor: COLORS.primary },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary },
-  saveBtn: { backgroundColor: COLORS.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  emailText: { fontSize: 15, color: COLORS.textSecondary },
-  logoutBtn: { backgroundColor: COLORS.accentLight, borderRadius: 12, padding: 16, alignItems: 'center' },
-  logoutText: { color: COLORS.accent, fontWeight: '700', fontSize: 16 },
+const makeStyles = (colors: ColorPalette) => StyleSheet.create({
+  container:        { flex: 1, backgroundColor: colors.background },
+  title:            { fontSize: 28, fontWeight: '700', color: colors.text, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
+  content:          { padding: 16, gap: 16, paddingBottom: 40 },
+
+  avatarSection:    { alignItems: 'center', paddingVertical: 8 },
+  avatar:           { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+  avatarText:       { fontSize: 32, fontWeight: '700', color: colors.primary },
+  username:         { fontSize: 15, color: colors.textSecondary, marginTop: 8, fontWeight: '600' },
+
+  card:             { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 12 },
+  cardTitle:        { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+  label:            { fontSize: 13, fontWeight: '600', color: colors.text },
+  input:            { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 15, color: colors.text },
+  emailText:        { fontSize: 15, color: colors.textSecondary },
+
+  themeGroup:       { gap: 8 },
+  themeGroupLabel:  { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 },
+  themeRow:         { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
+  themeOption:      { alignItems: 'center', gap: 5, width: 56 },
+  themeSwatchWrap:  { borderRadius: 16, padding: 2.5, borderWidth: 2.5, borderColor: 'transparent' },
+  themeSwatch:      { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  themeSwatchInner: { width: 18, height: 18, borderRadius: 9 },
+  themeLabel:       { fontSize: 10, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
+
+  swatchLabel:      { fontSize: 13, fontWeight: '600', color: colors.text },
+  swatchGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  swatch:           { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  swatchActive:     { borderWidth: 3, borderColor: colors.text },
+  darkToggleRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
+  darkToggleText:   { flex: 1, fontSize: 15, color: colors.text, fontWeight: '500' },
+  toggle:           { width: 44, height: 26, borderRadius: 13, justifyContent: 'center', paddingHorizontal: 3 },
+  toggleThumb:      { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
+  toggleThumbOn:    { alignSelf: 'flex-end' },
+
+  saveBtn:          { backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
+  saveBtnText:      { color: '#fff', fontWeight: '700', fontSize: 16 },
+  logoutBtn:        { backgroundColor: colors.accentLight, borderRadius: 12, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
+  logoutText:       { color: colors.accent, fontWeight: '700', fontSize: 16 },
 });

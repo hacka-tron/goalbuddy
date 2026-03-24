@@ -10,9 +10,28 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
     const result = await query(
       `SELECT
         bc.id, bc.status, bc.created_at, bc.accepted_at, bc.goal_id,
+        bc.connection_type,
         g.title AS goal_title, g.category AS goal_category,
         u.id AS buddy_id, u.display_name AS buddy_name, u.avatar_url AS buddy_avatar,
-        a.activity_level, a.current_streak, a.last_checkin_at
+        a.activity_level, a.current_streak, a.last_checkin_at,
+        (
+          SELECT COUNT(*)::int
+          FROM milestones m
+          WHERE m.goal_id = bc.goal_id
+            AND m.user_id = u.id
+            AND m.frequency != 'once'
+            AND NOT EXISTS (
+              SELECT 1 FROM milestone_logs ml
+              WHERE ml.milestone_id = m.id
+                AND ml.user_id = u.id
+                AND ml.period_start = CASE
+                  WHEN m.frequency = 'daily'   THEN CURRENT_DATE
+                  WHEN m.frequency = 'weekly'  THEN date_trunc('week', CURRENT_DATE)::date
+                  WHEN m.frequency = 'monthly' THEN date_trunc('month', CURRENT_DATE)::date
+                  ELSE CURRENT_DATE
+                END
+            )
+        ) AS overdue_count
        FROM buddy_connections bc
        JOIN goals g ON g.id = bc.goal_id
        JOIN users u ON u.id = CASE WHEN bc.requester_id = $1 THEN bc.receiver_id ELSE bc.requester_id END
@@ -32,7 +51,7 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     const result = await query(
       `SELECT
         bc.id, bc.status, bc.created_at, bc.accepted_at, bc.goal_id,
-        bc.requester_id, bc.receiver_id,
+        bc.requester_id, bc.receiver_id, bc.connection_type,
         g.title AS goal_title, g.category AS goal_category, g.description AS goal_description, g.target_date,
         u.id AS buddy_id, u.display_name AS buddy_name, u.avatar_url AS buddy_avatar, u.bio AS buddy_bio,
         a.activity_level, a.current_streak, a.total_checkins, a.milestones_completed,

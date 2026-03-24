@@ -6,13 +6,15 @@ import {
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { apiFetch } from '../../lib/api';
-import { COLORS } from '../../lib/constants';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
+  const { colors } = useThemeStore();
+  const s = makeStyles(colors);
 
   const handleLogin = async () => {
     if (!email || !password) { Alert.alert('Please fill in all fields'); return; }
@@ -46,7 +48,7 @@ export default function LoginScreen() {
           value={email}
           onChangeText={setEmail}
           placeholder="you@example.com"
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={colors.textSecondary}
           autoCapitalize="none"
           keyboardType="email-address"
         />
@@ -57,7 +59,7 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
           placeholder="••••••••"
-          placeholderTextColor={COLORS.textSecondary}
+          placeholderTextColor={colors.textSecondary}
           secureTextEntry
         />
 
@@ -73,27 +75,27 @@ export default function LoginScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 24, paddingTop: 80 },
   header: { alignItems: 'center', marginBottom: 48 },
   logo: { fontSize: 56, marginBottom: 12 },
-  title: { fontSize: 32, fontWeight: '700', color: COLORS.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 16, color: COLORS.textSecondary, marginTop: 4 },
+  title: { fontSize: 32, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
+  subtitle: { fontSize: 16, color: colors.textSecondary, marginTop: 4 },
   form: { gap: 12 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  label: { fontSize: 14, fontWeight: '600', color: colors.text },
   input: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 4,
   },
   btn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -101,6 +103,6 @@ const s = StyleSheet.create({
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   linkBtn: { alignItems: 'center', paddingVertical: 12 },
-  linkText: { color: COLORS.textSecondary, fontSize: 14 },
-  linkAccent: { color: COLORS.primary, fontWeight: '600' },
+  linkText: { color: colors.textSecondary, fontSize: 14 },
+  linkAccent: { color: colors.primary, fontWeight: '600' },
 });

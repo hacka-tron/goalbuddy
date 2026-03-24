@@ -6,7 +6,7 @@ import {
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { apiFetch } from '../../lib/api';
-import { COLORS } from '../../lib/constants';
+import { useThemeStore } from '../../store/themeStore';
 
 export default function RegisterScreen() {
   const [displayName, setDisplayName] = useState('');
@@ -15,6 +15,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { setAuth } = useAuthStore();
+  const { colors } = useThemeStore();
+  const s = makeStyles(colors);
 
   const handleRegister = async () => {
     if (!displayName || !username || !email || !password) {
@@ -58,7 +60,7 @@ export default function RegisterScreen() {
               value={value}
               onChangeText={set}
               placeholder={placeholder}
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               secureTextEntry={secure}
               autoCapitalize={label === 'Username' || label === 'Email' ? 'none' : 'words'}
               keyboardType={label === 'Email' ? 'email-address' : 'default'}
@@ -78,27 +80,27 @@ export default function RegisterScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+const makeStyles = (colors: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 24, paddingTop: 60 },
   header: { alignItems: 'center', marginBottom: 36 },
   logo: { fontSize: 48, marginBottom: 10 },
-  title: { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  subtitle: { fontSize: 15, color: COLORS.textSecondary, marginTop: 4 },
+  title: { fontSize: 28, fontWeight: '700', color: colors.text },
+  subtitle: { fontSize: 15, color: colors.textSecondary, marginTop: 4 },
   form: { gap: 10 },
-  label: { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 4 },
+  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 },
   input: {
-    backgroundColor: COLORS.card,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    color: COLORS.text,
+    color: colors.text,
     marginBottom: 4,
   },
   btn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
@@ -106,6 +108,6 @@ const s = StyleSheet.create({
   },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   linkBtn: { alignItems: 'center', paddingVertical: 12 },
-  linkText: { color: COLORS.textSecondary, fontSize: 14 },
-  linkAccent: { color: COLORS.primary, fontWeight: '600' },
+  linkText: { color: colors.textSecondary, fontSize: 14 },
+  linkAccent: { color: colors.primary, fontWeight: '600' },
 });

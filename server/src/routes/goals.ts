@@ -4,6 +4,34 @@ import { query } from '../db';
 
 const router = Router();
 
+// GET /goals/public  — search other users' public goals (for co-op discovery)
+router.get('/public', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { q, category } = req.query as { q?: string; category?: string };
+  try {
+    const result = await query(
+      `SELECT g.id, g.title, g.category, g.description, g.target_date,
+              u.id AS user_id, u.display_name, u.username, u.avatar_url,
+              a.activity_level, a.current_streak,
+              (SELECT COUNT(*) FROM milestones m WHERE m.goal_id = g.id) AS milestone_count
+       FROM goals g
+       JOIN users u ON u.id = g.user_id
+       LEFT JOIN activity_stats a ON a.user_id = u.id
+       WHERE g.is_public = TRUE
+         AND g.status = 'active'
+         AND g.user_id != $1
+         AND ($2::text IS NULL OR g.title ILIKE '%' || $2 || '%' OR g.description ILIKE '%' || $2 || '%')
+         AND ($3::text IS NULL OR g.category = $3)
+       ORDER BY a.activity_level DESC, g.created_at DESC
+       LIMIT 40`,
+      [req.userId, q || null, category || null]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /goals  — my goals with buddy status per goal
 router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {

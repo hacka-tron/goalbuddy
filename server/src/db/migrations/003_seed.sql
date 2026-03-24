@@ -104,7 +104,10 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Buddy Connections ─────────────────────────────────────────
--- Alex (workout) ↔ Sam (workout)
+-- All test users are buddied with Alex (00000000-...-001) for easy testing.
+-- Log in as alex@test.com (password: password123) to see all buddy connections.
+
+-- Alex (workout: half marathon) ↔ Sam (workout: gym 4x/week)
 INSERT INTO buddy_connections (id, requester_id, receiver_id, goal_id, status, accepted_at)
 VALUES
   ('20000000-0000-0000-0000-000000000001',
@@ -115,25 +118,36 @@ VALUES
    NOW() - INTERVAL '14 days')
 ON CONFLICT DO NOTHING;
 
--- Sam (career) ↔ Jordan (career)
+-- Alex (career: Ship SaaS) ↔ Jordan (career: Get promoted)
 INSERT INTO buddy_connections (id, requester_id, receiver_id, goal_id, status, accepted_at)
 VALUES
   ('20000000-0000-0000-0000-000000000002',
-   '00000000-0000-0000-0000-000000000002',
    '00000000-0000-0000-0000-000000000003',
-   '10000000-0000-0000-0000-000000000003',
+   '00000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000002',
    'accepted',
-   NOW() - INTERVAL '7 days')
+   NOW() - INTERVAL '10 days')
 ON CONFLICT DO NOTHING;
 
--- Maya (workout) ↔ Chris (workout) — pending
+-- Alex ↔ Maya (Maya finance goal) — pending (Maya sent request)
 INSERT INTO buddy_connections (id, requester_id, receiver_id, goal_id, status)
 VALUES
   ('20000000-0000-0000-0000-000000000003',
    '00000000-0000-0000-0000-000000000004',
-   '00000000-0000-0000-0000-000000000005',
-   '10000000-0000-0000-0000-000000000008',
+   '00000000-0000-0000-0000-000000000001',
+   '10000000-0000-0000-0000-000000000007',
    'pending')
+ON CONFLICT DO NOTHING;
+
+-- Alex ↔ Chris (Chris study goal: read 24 books)
+INSERT INTO buddy_connections (id, requester_id, receiver_id, goal_id, status, accepted_at)
+VALUES
+  ('20000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000001',
+   '00000000-0000-0000-0000-000000000005',
+   '10000000-0000-0000-0000-000000000009',
+   'accepted',
+   NOW() - INTERVAL '5 days')
 ON CONFLICT DO NOTHING;
 
 -- ── Milestones ────────────────────────────────────────────────
@@ -192,7 +206,7 @@ ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO check_ins (connection_id, author_id, message, mood, milestone_id, created_at)
 VALUES
-  -- Alex ↔ Sam check-ins (workout connection)
+  -- Alex ↔ Sam check-ins (workout connection: 20000000-...-001)
   ('20000000-0000-0000-0000-000000000001',
    '00000000-0000-0000-0000-000000000001',
    'Just did my long run — 14km! Legs are dead but feeling great 💪',
@@ -228,25 +242,47 @@ VALUES
    NULL,
    NOW() - INTERVAL '4 days'),
 
-  -- Sam ↔ Jordan check-ins (career connection)
-  ('20000000-0000-0000-0000-000000000002',
-   '00000000-0000-0000-0000-000000000002',
-   'Solved 5 more LeetCode mediums today. Trees are clicking now 🌳',
-   'great',
-   '30000000-0000-0000-0000-000000000005',
-   NOW() - INTERVAL '3 days'),
-
+  -- Alex ↔ Jordan check-ins (career connection: 20000000-...-002)
   ('20000000-0000-0000-0000-000000000002',
    '00000000-0000-0000-0000-000000000003',
    'Had my project review — my manager loved the new architecture. Feeling hopeful about the promotion!',
    'great',
    NULL,
-   NOW() - INTERVAL '2 days'),
+   NOW() - INTERVAL '8 days'),
 
   ('20000000-0000-0000-0000-000000000002',
-   '00000000-0000-0000-0000-000000000002',
-   'Struggling with dynamic programming. Been on the same problem for 2 hours 😤',
+   '00000000-0000-0000-0000-000000000001',
+   'That is awesome! Keep pushing, you deserve that promo. My SaaS MVP is 60% done 🚀',
+   'great',
+   NULL,
+   NOW() - INTERVAL '7 days'),
+
+  ('20000000-0000-0000-0000-000000000002',
+   '00000000-0000-0000-0000-000000000003',
+   'Got some critical feedback today. Back to the drawing board on the API design.',
    'blocked',
+   NULL,
+   NOW() - INTERVAL '2 days'),
+
+  -- Alex ↔ Chris check-ins (study connection: 20000000-...-004)
+  ('20000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000005',
+   'Finished book #3 — Atomic Habits. Life changing stuff 📚',
+   'great',
+   '30000000-0000-0000-0000-000000000007',
+   NOW() - INTERVAL '3 days'),
+
+  ('20000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000001',
+   'Nice! I read that last year. Next try The Power of Habit or Deep Work. Both are 🔥',
+   'good',
+   NULL,
+   NOW() - INTERVAL '2 days'),
+
+  ('20000000-0000-0000-0000-000000000004',
+   '00000000-0000-0000-0000-000000000005',
+   'Started book #4 this morning. On track for 2/month 💪',
+   'good',
    NULL,
    NOW() - INTERVAL '1 day');
 

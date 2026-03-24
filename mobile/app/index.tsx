@@ -2,10 +2,11 @@ import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import { COLORS } from '../lib/constants';
+import { useThemeStore } from '../store/themeStore';
 
 export default function Index() {
   const { user, isLoading } = useAuthStore();
+  const { colors } = useThemeStore();
 
   useEffect(() => {
     if (!isLoading) {
@@ -18,8 +19,8 @@ export default function Index() {
   }, [user, isLoading]);
 
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.background }}>
-      <ActivityIndicator color={COLORS.primary} size="large" />
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+      <ActivityIndicator color={colors.primary} size="large" />
     </View>
   );
 }
