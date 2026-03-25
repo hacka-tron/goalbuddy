@@ -62,19 +62,19 @@ export const THEMES: Record<Exclude<ThemeKey, 'custom'>, { name: string; dark: b
   midnight: {
     name: 'Midnight', dark: true,
     colors: {
-      background: '#12141C', card: '#1E2130',
-      primary: '#7B8FFF', primaryLight: '#252A45',
-      accent: '#FF7A85', accentLight: '#3A2030',
+      background: '#141414', card: '#1E1E28',
+      primary: '#7B8FFF', primaryLight: '#25254A',
+      accent: '#FF7A85', accentLight: '#38202A',
       text: '#E8EAF2', textSecondary: '#6B7291',
-      border: '#2A2F45', white: '#FFFFFF',
+      border: '#2A2A3C', white: '#FFFFFF',
     },
   },
   charcoal: {
     name: 'Charcoal', dark: true,
     colors: {
-      background: '#161616', card: '#222222',
-      primary: '#64B5F6', primaryLight: '#1A2A38',
-      accent: '#FF8A65', accentLight: '#2A1A12',
+      background: '#141414', card: '#222222',
+      primary: '#64B5F6', primaryLight: '#1A2838',
+      accent: '#FF8A65', accentLight: '#2A1A10',
       text: '#EFEFEF', textSecondary: '#7A7A7A',
       border: '#2E2E2E', white: '#FFFFFF',
     },
@@ -82,21 +82,21 @@ export const THEMES: Record<Exclude<ThemeKey, 'custom'>, { name: string; dark: b
   forest: {
     name: 'Forest', dark: true,
     colors: {
-      background: '#0F1A14', card: '#172219',
-      primary: '#81C784', primaryLight: '#152218',
-      accent: '#FFB74D', accentLight: '#2A1E0A',
-      text: '#E0F0E4', textSecondary: '#6A8A70',
-      border: '#1E3024', white: '#FFFFFF',
+      background: '#141414', card: '#1E1E1E',
+      primary: '#81C784', primaryLight: '#1A2E1C',
+      accent: '#FFB74D', accentLight: '#2A200A',
+      text: '#E8F0E8', textSecondary: '#6A8A6A',
+      border: '#282828', white: '#FFFFFF',
     },
   },
   plum: {
     name: 'Plum', dark: true,
     colors: {
-      background: '#180F22', card: '#231530',
-      primary: '#CE93D8', primaryLight: '#2A1A35',
+      background: '#141414', card: '#1E1A24',
+      primary: '#CE93D8', primaryLight: '#281A38',
       accent: '#80CBC4', accentLight: '#102020',
       text: '#EDE0F5', textSecondary: '#8A6EA0',
-      border: '#311E42', white: '#FFFFFF',
+      border: '#2C2432', white: '#FFFFFF',
     },
   },
 };
@@ -117,23 +117,55 @@ export const ACCENT_SWATCHES = [
   '#26C6DA', '#7B8FFF', '#EC407A', '#FF5722',
 ];
 
-export function buildCustomPalette(primary: string, accent: string, dark: boolean): ColorPalette {
+// Curated backgrounds for custom theme (8 light, 8 dark)
+export const BACKGROUND_SWATCHES = [
+  // Light
+  '#FFFFFF',  // White
+  '#FFFBEB',  // Warm yellow
+  '#EFF6FF',  // Sky blue
+  '#F0FDF4',  // Mint green
+  '#FDF2F8',  // Soft pink
+  '#F5F3FF',  // Lavender
+  '#FFF7ED',  // Peach
+  '#F0FDFA',  // Aqua
+  // Dark
+  '#141414',  // Charcoal
+  '#0F172A',  // Dark navy
+  '#1A1422',  // Dark plum
+  '#10181A',  // Dark teal
+  '#1A1200',  // Dark amber
+  '#0F1A0F',  // Dark forest
+  '#1A0F0F',  // Dark crimson
+  '#0F0F1A',  // Dark indigo
+];
+
+export function buildCustomPalette(primary: string, accent: string, background: string): ColorPalette {
   const toRgba = (hex: string, alpha: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r},${g},${b},${alpha})`;
   };
+  const lighten = (hex: string, amt: number) => {
+    const r = Math.min(255, parseInt(hex.slice(1, 3), 16) + amt);
+    const g = Math.min(255, parseInt(hex.slice(3, 5), 16) + amt);
+    const b = Math.min(255, parseInt(hex.slice(5, 7), 16) + amt);
+    return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+  };
+  const r = parseInt(background.slice(1, 3), 16);
+  const g = parseInt(background.slice(3, 5), 16);
+  const b = parseInt(background.slice(5, 7), 16);
+  const dark = (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
   return {
-    background: dark ? '#111318' : '#F7F7F5',
-    card:        dark ? '#1C1F2B' : '#FFFFFF',
+    background,
+    card:          dark ? lighten(background, 14) : '#FFFFFF',
     primary,
-    primaryLight: toRgba(primary, dark ? 0.22 : 0.13),
+    primaryLight:  toRgba(primary, dark ? 0.22 : 0.13),
     accent,
-    accentLight:  toRgba(accent, dark ? 0.22 : 0.13),
-    text:         dark ? '#E6E8F0' : '#1C1C1E',
-    textSecondary:dark ? '#686E8A' : '#888888',
-    border:       dark ? '#272B3C' : '#E8E8E8',
+    accentLight:   toRgba(accent, dark ? 0.22 : 0.13),
+    text:          dark ? '#E6E8F0' : '#1C1C1E',
+    textSecondary: dark ? '#686E8A' : '#888888',
+    border:        dark ? lighten(background, 20) : '#E8E8E8',
     white: '#FFFFFF',
   };
 }
@@ -163,9 +195,9 @@ export const MOODS = [
 ] as const;
 
 export const ACTIVITY_LEVELS: Record<string, { label: string; color: string }> = {
-  very_active: { label: 'Very Active', color: '#6A9E7F' },
-  active:      { label: 'Active',      color: '#F0B429' },
-  occasional:  { label: 'Occasional',  color: '#8A8A8A' },
-  inactive:    { label: 'Inactive',    color: '#E8806A' },
-  new:         { label: 'New',         color: '#8A8A8A' },
+  very_active: { label: 'Elite',    color: '#6A9E7F' },
+  active:      { label: 'Active',   color: '#F0B429' },
+  occasional:  { label: 'Casual',   color: '#8A8A8A' },
+  inactive:    { label: 'Inactive', color: '#E8806A' },
+  new:         { label: 'New',      color: '#8A8A8A' },
 };

@@ -1,20 +1,8 @@
-# Dependencies
 node_modules/
-mobile/node_modules/
-server/node_modules/
-
-# Env
 .env
-.env.local
-
-# Build
-server/dist/
-mobile/.expo/
-mobile/dist/
-
-# OS
-.DS_Store
-
-# Logs
 *.log
-npm-debug.log*
+dist/
+build/
+.expo/
+.DS_Store
+*.orig

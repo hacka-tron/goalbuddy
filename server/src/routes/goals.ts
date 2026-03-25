@@ -6,24 +6,39 @@ const router = Router();
 
 // GET /goals/public  — search other users' public goals (for co-op discovery)
 router.get('/public', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { q, category } = req.query as { q?: string; category?: string };
+  const { q, category, buddyFilter } = req.query as { q?: string; category?: string; buddyFilter?: string };
   try {
     const result = await query(
       `SELECT g.id, g.title, g.category, g.description, g.target_date,
               u.id AS user_id, u.display_name, u.username, u.avatar_url,
               a.activity_level, a.current_streak,
-              (SELECT COUNT(*) FROM milestones m WHERE m.goal_id = g.id) AS milestone_count
+              COALESCE(ms.milestone_count, 0) AS milestone_count,
+              EXISTS(
+                SELECT 1 FROM buddy_connections bc
+                WHERE bc.goal_id = g.id AND bc.status = 'accepted'
+              ) AS has_buddy,
+              (
+                SELECT bc2.status FROM buddy_connections bc2
+                WHERE bc2.goal_id = g.id AND bc2.requester_id = $1
+                LIMIT 1
+              ) AS my_request_status
        FROM goals g
        JOIN users u ON u.id = g.user_id
        LEFT JOIN activity_stats a ON a.user_id = u.id
+       LEFT JOIN (SELECT goal_id, COUNT(*) AS milestone_count FROM milestones GROUP BY goal_id) ms ON ms.goal_id = g.id
        WHERE g.is_public = TRUE
          AND g.status = 'active'
          AND g.user_id != $1
          AND ($2::text IS NULL OR g.title ILIKE '%' || $2 || '%' OR g.description ILIKE '%' || $2 || '%')
-         AND ($3::text IS NULL OR g.category = $3)
+         AND ($3::text IS NULL OR g.category::text = $3)
+         AND (
+           $4::text IS NULL
+           OR ($4 = 'open' AND NOT EXISTS(SELECT 1 FROM buddy_connections bc3 WHERE bc3.goal_id = g.id AND bc3.status = 'accepted'))
+           OR ($4 = 'taken' AND EXISTS(SELECT 1 FROM buddy_connections bc3 WHERE bc3.goal_id = g.id AND bc3.status = 'accepted'))
+         )
        ORDER BY a.activity_level DESC, g.created_at DESC
        LIMIT 40`,
-      [req.userId, q || null, category || null]
+      [req.userId, q || null, category || null, buddyFilter || null]
     );
     res.json(result.rows);
   } catch (err) {
@@ -42,7 +57,11 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
         CASE WHEN bc.requester_id = $1 THEN bc.receiver_id ELSE bc.requester_id END AS buddy_id,
         u.display_name AS buddy_name,
         u.avatar_url AS buddy_avatar,
-        a.activity_level AS buddy_activity_level
+        a.activity_level AS buddy_activity_level,
+        EXISTS(
+          SELECT 1 FROM buddy_connections bc2
+          WHERE bc2.goal_id = g.id AND bc2.status = 'pending'
+        ) AS has_pending_request
        FROM goals g
        LEFT JOIN buddy_connections bc ON bc.goal_id = g.id AND bc.status = 'accepted'
        LEFT JOIN users u ON u.id = CASE WHEN bc.requester_id = $1 THEN bc.receiver_id ELSE bc.requester_id END
@@ -53,6 +72,40 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
     );
     res.json(result.rows);
   } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// POST /goals/from-template
+router.post('/from-template', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  const { sourceGoalId } = req.body;
+  if (!sourceGoalId) { res.status(400).json({ error: 'sourceGoalId required' }); return; }
+  try {
+    const goalRes = await query(
+      `SELECT title, category, description FROM goals WHERE id = $1 AND is_public = TRUE AND status = 'active'`,
+      [sourceGoalId]
+    );
+    if (!goalRes.rows[0]) { res.status(404).json({ error: 'Goal not found' }); return; }
+    const { title, category, description } = goalRes.rows[0];
+
+    const newGoal = await query(
+      `INSERT INTO goals (user_id, title, category, description, is_public)
+       VALUES ($1, $2, $3, $4, FALSE) RETURNING *`,
+      [req.userId, title, category, description]
+    );
+
+    const milestones = await query(
+      `SELECT title, description, frequency FROM milestones WHERE goal_id = $1`,
+      [sourceGoalId]
+    );
+    for (const m of milestones.rows) {
+      await query(
+        `INSERT INTO milestones (goal_id, user_id, title, description, frequency)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [newGoal.rows[0].id, req.userId, m.title, m.description, m.frequency]
+      );
+    }
+
+    res.status(201).json(newGoal.rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // POST /goals

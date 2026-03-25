@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useThemeStore } from '../../store/themeStore';
+import { useNotificationStore } from '../../store/notificationStore';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -14,6 +15,7 @@ const TAB_ICONS: Record<string, { active: MCIName; inactive: MCIName }> = {
 
 export default function TabsLayout() {
   const { colors } = useThemeStore();
+  const { unreadCount } = useNotificationStore();
 
   return (
     <Tabs
@@ -36,10 +38,10 @@ export default function TabsLayout() {
         },
       })}
     >
-      <Tabs.Screen name="goals"      options={{ title: 'Goals' }} />
-      <Tabs.Screen name="finder"     options={{ title: 'Find' }} />
-      <Tabs.Screen name="buddies"    options={{ title: 'Buddies' }} />
       <Tabs.Screen name="milestones" options={{ title: 'Wins' }} />
+      <Tabs.Screen name="finder"     options={{ title: 'Find' }} />
+      <Tabs.Screen name="goals"      options={{ title: 'Goals' }} />
+      <Tabs.Screen name="buddies"    options={{ title: 'Buddies', tabBarBadge: unreadCount > 0 ? unreadCount : undefined }} />
       <Tabs.Screen name="settings"   options={{ title: 'Settings' }} />
     </Tabs>
   );

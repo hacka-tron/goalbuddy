@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, RefreshControl,
+  TouchableWithoutFeedback, Modal, TextInput, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,6 +25,7 @@ type Goal = {
   connection_status: string | null;
   buddy_name: string | null;
   buddy_activity_level: string | null;
+  has_pending_request: boolean;
 };
 
 type Milestone = {
@@ -51,6 +52,8 @@ type PublicGoal = {
   activity_level: string;
   current_streak: number;
   milestone_count: number;
+  has_buddy: boolean;
+  my_request_status: string | null;
 };
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
@@ -80,7 +83,7 @@ function msMatchesFilter(ms: Milestone, filter: MsFilter): boolean {
 function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
   const qc = useQueryClient();
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newMsTitle, setNewMsTitle] = useState('');
@@ -316,12 +319,12 @@ function getMsDueText(ms: Milestone): string | null {
 function MilestonesView({ goals }: { goals: Goal[] }) {
   const qc = useQueryClient();
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [filter, setFilter] = useState<MsFilter>('all');
   const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
   const [openDropdown, setOpenDropdown] = useState<'date' | 'goal' | null>(null);
 
-  const { data: milestones = [], isLoading, refetch, isRefetching } = useQuery<Milestone[]>({
+  const { data: milestones = [], isLoading, isError: isMsError, refetch, isRefetching } = useQuery<Milestone[]>({
     queryKey: ['milestones', 'me'],
     queryFn: () => apiFetch('/milestones/me'),
   });
@@ -369,13 +372,16 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
   const goalActive = selectedGoals.size > 0;
 
   return (
-    <ScrollView
-      contentContainerStyle={s.msViewContent}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
-    >
-      {/* Reddit-style filter bar */}
-      <View style={s.filterBar}>
-        {/* Date range pill */}
+    <View style={{ flex: 1 }}>
+      {/* Backdrop — closes dropdown when tapping outside */}
+      {openDropdown !== null && (
+        <TouchableWithoutFeedback onPress={() => setOpenDropdown(null)}>
+          <View style={[StyleSheet.absoluteFillObject, { zIndex: 5 }]} />
+        </TouchableWithoutFeedback>
+      )}
+
+      {/* Filter bar (above backdrop) */}
+      <View style={[s.filterBar, { zIndex: 10 }]}>
         <TouchableOpacity
           style={[s.filterPill, { borderColor: filter !== 'all' ? colors.primary : colors.border, backgroundColor: filter !== 'all' ? colors.primaryLight : colors.card }]}
           onPress={() => setOpenDropdown(openDropdown === 'date' ? null : 'date')}
@@ -385,8 +391,6 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
           <Text style={[s.filterPillText, { color: filter !== 'all' ? colors.primary : colors.textSecondary }]}>{dateLabel}</Text>
           <MaterialCommunityIcons name={openDropdown === 'date' ? 'chevron-up' : 'chevron-down'} size={14} color={filter !== 'all' ? colors.primary : colors.textSecondary} />
         </TouchableOpacity>
-
-        {/* Goals pill */}
         <TouchableOpacity
           style={[s.filterPill, { borderColor: goalActive ? colors.primary : colors.border, backgroundColor: goalActive ? colors.primaryLight : colors.card }]}
           onPress={() => setOpenDropdown(openDropdown === 'goal' ? null : 'goal')}
@@ -398,9 +402,9 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
         </TouchableOpacity>
       </View>
 
-      {/* Date dropdown */}
+      {/* Dropdowns (above backdrop) */}
       {openDropdown === 'date' && (
-        <View style={[s.dropdownPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[s.dropdownPanel, { zIndex: 10, backgroundColor: colors.card, borderColor: colors.border }]}>
           {DATE_OPTIONS.map((opt) => {
             const active = filter === opt.key;
             return (
@@ -416,15 +420,10 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
           })}
         </View>
       )}
-
-      {/* Goals dropdown — multi-select */}
       {openDropdown === 'goal' && goals.length > 0 && (
-        <View style={[s.dropdownPanel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[s.dropdownPanel, { zIndex: 10, backgroundColor: colors.card, borderColor: colors.border }]}>
           {selectedGoals.size > 0 && (
-            <TouchableOpacity
-              style={s.dropdownItem}
-              onPress={() => setSelectedGoals(new Set())}
-            >
+            <TouchableOpacity style={s.dropdownItem} onPress={() => setSelectedGoals(new Set())}>
               <Text style={[s.dropdownItemText, { color: colors.textSecondary }]}>Clear selection</Text>
             </TouchableOpacity>
           )}
@@ -446,35 +445,52 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
         </View>
       )}
 
-      {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
+      {/* Scrollable milestone list */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={s.msViewContent}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+      >
+        {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
 
-      {!isLoading && filtered.length === 0 && (
-        <View style={s.empty}>
-          <MaterialCommunityIcons name="check-circle-outline" size={52} color={colors.border} />
-          <Text style={s.emptyTitle}>No milestones</Text>
-          <Text style={s.emptyText}>Add milestones in My Goals</Text>
-        </View>
-      )}
+        {!isLoading && isMsError && milestones.length === 0 && (
+          <View style={s.errorState}>
+            <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
+            <Text style={s.errorStateText}>Couldn't load milestones. Check your connection.</Text>
+            <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
+              <Text style={s.retryBtnText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {pending.length > 0 && (
-        <View style={s.msGroup}>
-          <Text style={s.msGroupLabel}>Pending · {pending.length}</Text>
-          {pending.map((ms) => <MsRow key={ms.id} ms={ms} onToggle={() => toggleMsMutation.mutate(ms)} colors={colors} />)}
-        </View>
-      )}
+        {!isLoading && !isMsError && filtered.length === 0 && (
+          <View style={s.empty}>
+            <MaterialCommunityIcons name="check-circle-outline" size={52} color={colors.border} />
+            <Text style={s.emptyTitle}>No milestones</Text>
+            <Text style={s.emptyText}>Add milestones in My Goals</Text>
+          </View>
+        )}
 
-      {done.length > 0 && (
-        <View style={s.msGroup}>
-          <Text style={s.msGroupLabel}>Completed · {done.length}</Text>
-          {done.map((ms) => <MsRow key={ms.id} ms={ms} onToggle={() => toggleMsMutation.mutate(ms)} colors={colors} />)}
-        </View>
-      )}
-    </ScrollView>
+        {pending.length > 0 && (
+          <View style={s.msGroup}>
+            <Text style={s.msGroupLabel}>Pending · {pending.length}</Text>
+            {pending.map((ms) => <MsRow key={ms.id} ms={ms} onToggle={() => toggleMsMutation.mutate(ms)} colors={colors} />)}
+          </View>
+        )}
+
+        {done.length > 0 && (
+          <View style={s.msGroup}>
+            <Text style={s.msGroupLabel}>Completed · {done.length}</Text>
+            {done.map((ms) => <MsRow key={ms.id} ms={ms} onToggle={() => toggleMsMutation.mutate(ms)} colors={colors} />)}
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 function MsRow({ ms, onToggle, colors }: { ms: Milestone; onToggle: () => void; colors: any }) {
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const cat = GOAL_CATEGORIES.find((c) => c.key === ms.goal_category);
   const done = ms.is_done_this_period;
   const dueText = getMsDueText(ms);
@@ -521,7 +537,7 @@ function GoalsView({
 }) {
   const qc = useQueryClient();
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
   const togglePublicMutation = useMutation({
     mutationFn: ({ id, isPublic }: { id: string; isPublic: boolean }) =>
@@ -571,18 +587,25 @@ function GoalsView({
             <Text style={[s.goalCardTitle, { color: colors.text }]}>{goal.title}</Text>
             {goal.description ? <Text style={[s.goalCardDesc, { color: colors.textSecondary }]}>{goal.description}</Text> : null}
 
-            {goal.buddy_name ? (
-              <View style={s.buddyRow}>
-                <MaterialCommunityIcons name="account-check-outline" size={14} color={colors.primary} />
-                <Text style={[s.buddyName, { color: colors.text }]}>{goal.buddy_name}</Text>
-                {goal.buddy_activity_level && <ActivityBadge level={goal.buddy_activity_level} small />}
-              </View>
-            ) : (
-              <View style={s.buddyRow}>
-                <MaterialCommunityIcons name="account-plus-outline" size={14} color={colors.textSecondary} />
-                <Text style={[s.noBuddy, { color: colors.textSecondary }]}>Find a buddy in the Finder</Text>
-              </View>
-            )}
+            <View style={s.buddyRow}>
+              {goal.connection_status === 'accepted' ? (
+                <View style={[s.buddyStatusPill, { backgroundColor: colors.primaryLight }]}>
+                  <MaterialCommunityIcons name="account-check" size={13} color={colors.primary} />
+                  <Text style={[s.buddyStatusText, { color: colors.primary }]}>{goal.buddy_name}</Text>
+                  {goal.buddy_activity_level && <ActivityBadge level={goal.buddy_activity_level} small />}
+                </View>
+              ) : goal.has_pending_request ? (
+                <View style={[s.buddyStatusPill, { backgroundColor: colors.accentLight }]}>
+                  <MaterialCommunityIcons name="account-clock-outline" size={13} color={colors.accent} />
+                  <Text style={[s.buddyStatusText, { color: colors.accent }]}>Request pending</Text>
+                </View>
+              ) : (
+                <View style={[s.buddyStatusPill, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
+                  <MaterialCommunityIcons name="account-plus-outline" size={13} color={colors.textSecondary} />
+                  <Text style={[s.buddyStatusText, { color: colors.textSecondary }]}>No buddy yet</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         );
       })}
@@ -592,23 +615,151 @@ function GoalsView({
   );
 }
 
+// ─── GoalDetailSheet ──────────────────────────────────────────────────────────
+
+function GoalDetailSheet({
+  goal, onClose, onRequestBuddy, onUseTemplate, requestPending, templatePending,
+}: {
+  goal: PublicGoal;
+  onClose: () => void;
+  onRequestBuddy: () => void;
+  onUseTemplate: () => void;
+  requestPending: boolean;
+  templatePending: boolean;
+}) {
+  const { colors } = useThemeStore();
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const cat = GOAL_CATEGORIES.find((c) => c.key === goal.category);
+
+  const { data: milestones = [], isLoading } = useQuery<Milestone[]>({
+    queryKey: ['milestones', 'goal', goal.id],
+    queryFn: () => apiFetch(`/milestones/goal/${goal.id}`),
+  });
+
+  const buddyLabel = () => {
+    if (goal.has_buddy) return 'Already has a buddy';
+    if (goal.my_request_status === 'pending') return 'Request sent';
+    if (goal.my_request_status === 'accepted') return 'Buddied up';
+    return 'Request Buddy';
+  };
+  const buddyDisabled = goal.has_buddy || goal.my_request_status != null;
+
+  return (
+    <SafeAreaView style={[s.discoverScreen, { backgroundColor: colors.background }]}>
+      <View style={s.discoverHeader}>
+        <TouchableOpacity onPress={onClose} style={[s.discoverClose, { backgroundColor: colors.card }]}>
+          <MaterialCommunityIcons name="arrow-left" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={[s.catBadge, { backgroundColor: colors.primaryLight, alignSelf: 'flex-start' }]}>
+            <MaterialCommunityIcons name={cat?.icon as MCIName} size={12} color={colors.primary} />
+            <Text style={[s.catLabel, { color: colors.primary }]}>{cat?.label}</Text>
+          </View>
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 40 }}>
+        <Text style={[s.discoverTitle, { color: colors.text }]}>{goal.title}</Text>
+        {goal.description ? <Text style={[s.goalCardDesc, { color: colors.textSecondary, lineHeight: 20 }]}>{goal.description}</Text> : null}
+
+        {/* Author */}
+        <View style={[s.discoverUser, { backgroundColor: colors.card, borderRadius: 12, padding: 12 }]}>
+          <View style={[s.discoverAvatar, { backgroundColor: colors.primaryLight }]}>
+            <Text style={[s.discoverAvatarText, { color: colors.primary }]}>{goal.display_name[0]}</Text>
+          </View>
+          <Text style={[s.discoverUserName, { color: colors.text, fontWeight: '600' }]}>{goal.display_name}</Text>
+          <ActivityBadge level={goal.activity_level} small />
+        </View>
+
+        {/* Actions */}
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity
+            style={[s.saveBtn, { flex: 1, backgroundColor: buddyDisabled ? colors.card : colors.primary, borderWidth: buddyDisabled ? 1 : 0, borderColor: colors.border }]}
+            onPress={onRequestBuddy}
+            disabled={buddyDisabled || requestPending}
+          >
+            {requestPending
+              ? <ActivityIndicator color="#fff" size="small" />
+              : <Text style={[s.saveBtnText, { color: buddyDisabled ? colors.textSecondary : '#fff' }]}>{buddyLabel()}</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.saveBtn, { flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
+            onPress={onUseTemplate}
+            disabled={templatePending}
+          >
+            {templatePending
+              ? <ActivityIndicator color={colors.primary} size="small" />
+              : <Text style={[s.saveBtnText, { color: colors.primary }]}>Use as Template</Text>}
+          </TouchableOpacity>
+        </View>
+
+        {/* Milestones */}
+        <Text style={[s.configSectionTitle, { color: colors.textSecondary }]}>Milestones</Text>
+        {isLoading && <ActivityIndicator color={colors.primary} />}
+        {!isLoading && milestones.length === 0 && (
+          <Text style={[s.goalCardDesc, { color: colors.textSecondary }]}>No milestones yet</Text>
+        )}
+        {milestones.map((ms) => (
+          <View key={ms.id} style={[s.msCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <MaterialCommunityIcons name="flag-outline" size={18} color={colors.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={[s.msCardTitle, { color: colors.text }]}>{ms.title}</Text>
+              {ms.frequency !== 'once' && (
+                <Text style={[s.msCardFreq, { color: colors.primary }]}>{FREQ_LABELS[ms.frequency]}</Text>
+              )}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
 // ─── DiscoverModal ────────────────────────────────────────────────────────────
 
-function DiscoverModal({ onClose }: { onClose: () => void }) {
+function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goal[] }) {
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
+  const [buddyFilter, setBuddyFilter] = useState<'all' | 'open' | 'taken'>('all');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedGoal, setSelectedGoal] = useState<PublicGoal | null>(null);
 
   const { data: results = [], isLoading } = useQuery<PublicGoal[]>({
-    queryKey: ['goals', 'public', debouncedSearch, filterCat],
+    queryKey: ['goals', 'public', debouncedSearch, filterCat, buddyFilter],
     queryFn: () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.set('q', debouncedSearch);
       if (filterCat) params.set('category', filterCat);
+      if (buddyFilter !== 'all') params.set('buddyFilter', buddyFilter);
       return apiFetch(`/goals/public?${params.toString()}`);
     },
+    staleTime: 0,
+  });
+
+  const requestBuddyMutation = useMutation({
+    mutationFn: (goalId: string) =>
+      apiFetch('/buddies/request', { method: 'POST', body: JSON.stringify({ goalId }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals', 'public'] });
+      qc.invalidateQueries({ queryKey: ['buddies'] });
+      // Optimistically update the selected goal so button locks immediately
+      setSelectedGoal((prev) => prev ? { ...prev, my_request_status: 'pending' } : null);
+    },
+    onError: (e: Error) => Alert.alert('Error', e.message),
+  });
+
+  const useTemplateMutation = useMutation({
+    mutationFn: (sourceGoalId: string) =>
+      apiFetch('/goals/from-template', { method: 'POST', body: JSON.stringify({ sourceGoalId }) }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
+      qc.invalidateQueries({ queryKey: ['milestones', 'me'] });
+      Alert.alert('Goal added!', 'The goal and its milestones have been copied to your Goals tab.');
+    },
+    onError: (e: Error) => Alert.alert('Error', e.message),
   });
 
   const handleSearch = (text: string) => {
@@ -616,6 +767,27 @@ function DiscoverModal({ onClose }: { onClose: () => void }) {
     clearTimeout((handleSearch as any)._t);
     (handleSearch as any)._t = setTimeout(() => setDebouncedSearch(text), 400);
   };
+
+  const BUDDY_FILTERS: { key: 'all' | 'open' | 'taken'; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'open', label: 'Open' },
+    { key: 'taken', label: 'Taken' },
+  ];
+
+  if (selectedGoal) {
+    return (
+      <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedGoal(null)}>
+        <GoalDetailSheet
+          goal={selectedGoal}
+          onClose={() => setSelectedGoal(null)}
+          onRequestBuddy={() => requestBuddyMutation.mutate(selectedGoal.id)}
+          onUseTemplate={() => useTemplateMutation.mutate(selectedGoal.id)}
+          requestPending={requestBuddyMutation.isPending}
+          templatePending={useTemplateMutation.isPending}
+        />
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
@@ -647,6 +819,7 @@ function DiscoverModal({ onClose }: { onClose: () => void }) {
           )}
         </View>
 
+        {/* Category filter */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterContent} style={s.filterRow}>
           <TouchableOpacity
             style={[s.chip, !filterCat && { backgroundColor: colors.primary, borderColor: colors.primary }]}
@@ -666,6 +839,23 @@ function DiscoverModal({ onClose }: { onClose: () => void }) {
           ))}
         </ScrollView>
 
+        {/* Buddy filter */}
+        <View style={[s.filterRow, { maxHeight: 40 }]}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterContent}>
+            {BUDDY_FILTERS.map((f) => (
+              <TouchableOpacity
+                key={f.key}
+                style={[s.chip, buddyFilter === f.key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
+                onPress={() => setBuddyFilter(f.key)}
+              >
+                {f.key === 'open' && <MaterialCommunityIcons name="account-plus-outline" size={13} color={buddyFilter === f.key ? '#fff' : colors.textSecondary} />}
+                {f.key === 'taken' && <MaterialCommunityIcons name="account-check-outline" size={13} color={buddyFilter === f.key ? '#fff' : colors.textSecondary} />}
+                <Text style={[s.chipText, buddyFilter === f.key && { color: '#fff' }]}>{f.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
           {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
           {!isLoading && results.length === 0 && (
@@ -677,15 +867,21 @@ function DiscoverModal({ onClose }: { onClose: () => void }) {
           {results.map((g) => {
             const cat = GOAL_CATEGORIES.find((c) => c.key === g.category);
             return (
-              <View key={g.id} style={[s.discoverCard, { backgroundColor: colors.card }]}>
+              <TouchableOpacity key={g.id} style={[s.discoverCard, { backgroundColor: colors.card }]} onPress={() => setSelectedGoal(g)} activeOpacity={0.8}>
                 <View style={s.discoverCardTop}>
                   <View style={[s.catBadge, { backgroundColor: colors.primaryLight }]}>
                     <MaterialCommunityIcons name={cat?.icon as MCIName} size={12} color={colors.primary} />
                     <Text style={[s.catLabel, { color: colors.primary }]}>{cat?.label}</Text>
                   </View>
-                  {g.milestone_count > 0 && (
-                    <Text style={[s.discoverMs, { color: colors.textSecondary }]}>{g.milestone_count} milestones</Text>
-                  )}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    {g.milestone_count > 0 && (
+                      <Text style={[s.discoverMs, { color: colors.textSecondary }]}>{g.milestone_count} milestones</Text>
+                    )}
+                    {g.has_buddy
+                      ? <MaterialCommunityIcons name="account-check" size={16} color={colors.textSecondary} />
+                      : <MaterialCommunityIcons name="account-plus-outline" size={16} color={colors.primary} />
+                    }
+                  </View>
                 </View>
                 <Text style={[s.goalCardTitle, { color: colors.text }]}>{g.title}</Text>
                 {g.description ? <Text style={[s.goalCardDesc, { color: colors.textSecondary }]} numberOfLines={2}>{g.description}</Text> : null}
@@ -696,7 +892,7 @@ function DiscoverModal({ onClose }: { onClose: () => void }) {
                   <Text style={[s.discoverUserName, { color: colors.textSecondary }]}>{g.display_name}</Text>
                   <ActivityBadge level={g.activity_level} small />
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
         </ScrollView>
@@ -710,7 +906,7 @@ function DiscoverModal({ onClose }: { onClose: () => void }) {
 export default function GoalsScreen() {
   const qc = useQueryClient();
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [activeTab, setActiveTab] = useState<'milestones' | 'goals'>('milestones');
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -720,7 +916,7 @@ export default function GoalsScreen() {
   const [newDescription, setNewDescription] = useState('');
   const [newIsPublic, setNewIsPublic] = useState(true);
 
-  const { data: goals = [], isLoading, refetch, isRefetching } = useQuery<Goal[]>({
+  const { data: goals = [], isLoading, isError, refetch, isRefetching } = useQuery<Goal[]>({
     queryKey: ['goals'],
     queryFn: () => apiFetch('/goals'),
   });
@@ -745,6 +941,21 @@ export default function GoalsScreen() {
     const fresh = goals.find((g) => g.id === selectedGoal.id) ?? selectedGoal;
     return <GoalConfig goal={fresh} onBack={() => setSelectedGoal(null)} />;
   }
+
+  if (isError && goals.length === 0) return (
+    <SafeAreaView style={s.container}>
+      <View style={s.topBar}>
+        <Text style={s.title}>Goals</Text>
+      </View>
+      <View style={s.errorState}>
+        <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
+        <Text style={s.errorStateText}>Couldn't load goals. Check your connection.</Text>
+        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
+          <Text style={s.retryBtnText}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
 
   return (
     <SafeAreaView style={s.container}>
@@ -786,7 +997,7 @@ export default function GoalsScreen() {
         </TouchableOpacity>
       </View>
 
-      {showDiscover && <DiscoverModal onClose={() => setShowDiscover(false)} />}
+      {showDiscover && <DiscoverModal onClose={() => setShowDiscover(false)} myGoals={goals} />}
 
       {/* Add Goal Modal */}
       <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAdd(false)}>
@@ -918,9 +1129,9 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   goalCardRight:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
   goalCardTitle:    { fontSize: 16, fontWeight: '700' },
   goalCardDesc:     { fontSize: 13 },
-  buddyRow:         { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
-  buddyName:        { fontSize: 12, fontWeight: '600' },
-  noBuddy:          { fontSize: 12, fontStyle: 'italic' },
+  buddyRow:         { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  buddyStatusPill:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  buddyStatusText:  { fontSize: 12, fontWeight: '600' },
 
   catBadge:         { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   catLabel:         { fontSize: 12, fontWeight: '600' },
@@ -928,6 +1139,10 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   empty:            { alignItems: 'center', paddingTop: 60, gap: 10 },
   emptyTitle:       { fontSize: 18, fontWeight: '700', color: colors.text },
   emptyText:        { fontSize: 14, color: colors.textSecondary },
+  errorState:       { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
+  errorStateText:   { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
+  retryBtn:         { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
+  retryBtnText:     { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   fabRow: {
     position: 'absolute', bottom: 24, right: 24,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator,
@@ -8,7 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { apiFetch } from '../../lib/api';
 import {
   THEMES, ThemeKey, LIGHT_THEME_KEYS, DARK_THEME_KEYS,
-  PRIMARY_SWATCHES, ColorPalette,
+  PRIMARY_SWATCHES, BACKGROUND_SWATCHES, ColorPalette,
 } from '../../lib/constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
@@ -17,7 +17,7 @@ import { router } from 'expo-router';
 
 export default function SettingsScreen() {
   const { user, updateUser, logout } = useAuthStore();
-  const { colors, themeKey, customPrimary, customAccent, customDark, setTheme, setCustomColors } = useThemeStore();
+  const { colors, themeKey, customPrimary, customAccent, customBackground, setTheme, setCustomColors } = useThemeStore();
   const [displayName, setDisplayName] = useState(user?.display_name || '');
   const [bio, setBio] = useState(user?.bio || '');
 
@@ -38,7 +38,7 @@ export default function SettingsScreen() {
     ]);
   };
 
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
   const ThemeRow = ({ keys, label }: { keys: Exclude<ThemeKey, 'custom'>[]; label: string }) => (
     <View style={s.themeGroup}>
@@ -60,10 +60,10 @@ export default function SettingsScreen() {
         })}
         {/* Custom swatch — only in Dark row */}
         {label === 'Dark' && (
-          <TouchableOpacity style={s.themeOption} onPress={() => setCustomColors(customPrimary, customAccent, customDark)}>
+          <TouchableOpacity style={s.themeOption} onPress={() => setCustomColors(customPrimary, customAccent, customBackground)}>
             <View style={[s.themeSwatchWrap, themeKey === 'custom' && { borderColor: colors.text }]}>
               <View style={[s.themeSwatch, { backgroundColor: customPrimary }]}>
-                <View style={[s.themeSwatchInner, { backgroundColor: customDark ? '#111318' : '#F7F7F5' }]} />
+                <View style={[s.themeSwatchInner, { backgroundColor: customBackground }]} />
               </View>
             </View>
             <Text style={s.themeLabel}>Custom</Text>
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
               {PRIMARY_SWATCHES.map((c) => (
                 <TouchableOpacity
                   key={c}
-                  onPress={() => setCustomColors(c, customAccent, customDark)}
+                  onPress={() => setCustomColors(c, customAccent, customBackground)}
                   style={[s.swatch, { backgroundColor: c }, customPrimary === c && s.swatchActive]}
                 >
                   {customPrimary === c && <MaterialCommunityIcons name="check" size={14} color="#fff" />}
@@ -120,20 +120,24 @@ export default function SettingsScreen() {
               ))}
             </View>
 
-            <TouchableOpacity
-              style={s.darkToggleRow}
-              onPress={() => setCustomColors(customPrimary, customAccent, !customDark)}
-            >
-              <MaterialCommunityIcons
-                name={customDark ? 'weather-night' : 'weather-sunny'}
-                size={20}
-                color={colors.textSecondary}
-              />
-              <Text style={s.darkToggleText}>{customDark ? 'Dark mode' : 'Light mode'}</Text>
-              <View style={[s.toggle, { backgroundColor: customDark ? colors.primary : colors.border }]}>
-                <View style={[s.toggleThumb, customDark && s.toggleThumbOn]} />
-              </View>
-            </TouchableOpacity>
+            <Text style={s.swatchLabel}>Background</Text>
+            <View style={s.swatchGrid}>
+              {BACKGROUND_SWATCHES.map((bg) => (
+                <TouchableOpacity
+                  key={bg}
+                  onPress={() => setCustomColors(customPrimary, customAccent, bg)}
+                  style={[s.swatch, { backgroundColor: bg, borderWidth: 1, borderColor: colors.border }, customBackground === bg && s.swatchActive]}
+                >
+                  {customBackground === bg && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={14}
+                      color={(0.299 * parseInt(bg.slice(1,3),16) + 0.587 * parseInt(bg.slice(3,5),16) + 0.114 * parseInt(bg.slice(5,7),16)) / 255 < 0.5 ? '#fff' : '#000'}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
@@ -188,8 +192,6 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   swatchGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch:           { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   swatchActive:     { borderWidth: 3, borderColor: colors.text },
-  darkToggleRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
-  darkToggleText:   { flex: 1, fontSize: 15, color: colors.text, fontWeight: '500' },
   toggle:           { width: 44, height: 26, borderRadius: 13, justifyContent: 'center', paddingHorizontal: 3 },
   toggleThumb:      { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
   toggleThumbOn:    { alignSelf: 'flex-end' },

@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -23,12 +24,25 @@ type WinItem = {
 
 export default function WinsScreen() {
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
 
-  const { data: feed = [], isLoading, refetch, isRefetching } = useQuery<WinItem[]>({
+  const { data: feed = [], isLoading, isError, refetch, isRefetching } = useQuery<WinItem[]>({
     queryKey: ['milestones', 'feed'],
     queryFn: () => apiFetch('/milestones/feed'),
   });
+
+  if (isError) return (
+    <SafeAreaView style={s.container}>
+      <Text style={s.title}>Wins</Text>
+      <View style={s.errorState}>
+        <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
+        <Text style={s.errorText}>Couldn't load wins. Check your connection.</Text>
+        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
+          <Text style={s.retryText}>Try again</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
 
   return (
     <SafeAreaView style={s.container}>
@@ -102,6 +116,10 @@ const makeStyles = (colors: any) => StyleSheet.create({
   empty:          { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyTitle:     { fontSize: 18, fontWeight: '700', color: colors.text },
   emptyText:      { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+  errorState:     { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
+  errorText:      { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
+  retryBtn:       { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
+  retryText:      { color: '#fff', fontWeight: '700', fontSize: 14 },
   card:           { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 10, borderWidth: 1, borderColor: colors.border },
   cardHeader:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar:         { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },

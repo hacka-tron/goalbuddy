@@ -17,9 +17,9 @@ export const ActivityBadge = ({ level, small }: Props) => {
 };
 
 const s = StyleSheet.create({
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  small: { paddingHorizontal: 6, paddingVertical: 2 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  label: { fontSize: 12, fontWeight: '600' },
-  labelSmall: { fontSize: 11 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
+  small: { paddingHorizontal: 5, paddingVertical: 2 },
+  dot: { width: 5, height: 5, borderRadius: 3 },
+  label: { fontSize: 11, fontWeight: '600' },
+  labelSmall: { fontSize: 10 },
 });

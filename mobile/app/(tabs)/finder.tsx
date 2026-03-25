@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, PanResponder, Animated, Dimensions,
@@ -26,7 +26,7 @@ type Candidate = {
 export default function FinderScreen() {
   const qc = useQueryClient();
   const { colors } = useThemeStore();
-  const s = makeStyles(colors);
+  const s = useMemo(() => makeStyles(colors), [colors]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [deckIndex, setDeckIndex] = useState(0);
   const [matchedUser, setMatchedUser] = useState<Candidate | null>(null);
@@ -39,7 +39,7 @@ export default function FinderScreen() {
 
   const { data: myGoals = [] } = useQuery<Goal[]>({ queryKey: ['goals'], queryFn: () => apiFetch('/goals') });
 
-  const { data: deck = [], isLoading } = useQuery<Candidate[]>({
+  const { data: deck = [], isLoading, isError: isDeckError, refetch: refetchDeck } = useQuery<Candidate[]>({
     queryKey: ['deck', selectedGoal?.id],
     queryFn: () => apiFetch(`/finder/deck?goalId=${selectedGoal!.id}`),
     enabled: !!selectedGoal,
@@ -157,7 +157,18 @@ export default function FinderScreen() {
 
       {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 80 }} />}
 
-      {!isLoading && !currentCard && (
+      {!isLoading && isDeckError && (
+        <View style={s.empty}>
+          <MaterialCommunityIcons name="wifi-off" size={52} color={colors.border} />
+          <Text style={s.emptyTitle}>Couldn't load buddies</Text>
+          <Text style={s.emptyText}>Check your connection and try again</Text>
+          <TouchableOpacity style={s.retryBtn} onPress={() => refetchDeck()}>
+            <Text style={s.retryText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!isLoading && !isDeckError && !currentCard && (
         <View style={s.empty}>
           <MaterialCommunityIcons name="check-all" size={56} color={colors.border} />
           <Text style={s.emptyTitle}>You're all caught up</Text>
@@ -165,7 +176,7 @@ export default function FinderScreen() {
         </View>
       )}
 
-      {!isLoading && currentCard && (
+      {!isLoading && !isDeckError && currentCard && (
         <View style={s.deckContainer}>
           {/* Card behind */}
           {nextCard && (
@@ -346,6 +357,8 @@ const makeStyles = (colors: any) => StyleSheet.create({
   empty:               { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyTitle:          { fontSize: 20, fontWeight: '800', color: colors.text },
   emptyText:           { fontSize: 14, color: colors.textSecondary },
+  retryBtn:            { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10, marginTop: 4 },
+  retryText:           { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   // Match modal
   matchModal:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 32 },

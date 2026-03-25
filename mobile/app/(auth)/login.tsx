@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../store/authStore';
 import { apiFetch } from '../../lib/api';
@@ -36,7 +37,9 @@ export default function LoginScreen() {
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
       <View style={s.header}>
-        <Text style={s.logo}>🎯</Text>
+        <View style={s.logoCircle}>
+          <MaterialCommunityIcons name="account-group" size={38} color={colors.primary} />
+        </View>
         <Text style={s.title}>GoalBuddy</Text>
         <Text style={s.subtitle}>Achieve more, together</Text>
       </View>
@@ -79,7 +82,12 @@ const makeStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 24, paddingTop: 80 },
   header: { alignItems: 'center', marginBottom: 48 },
-  logo: { fontSize: 56, marginBottom: 12 },
+  logoCircle: {
+    width: 80, height: 80, borderRadius: 24,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center', alignItems: 'center',
+    marginBottom: 16,
+  },
   title: { fontSize: 32, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
   subtitle: { fontSize: 16, color: colors.textSecondary, marginTop: 4 },
   form: { gap: 12 },
