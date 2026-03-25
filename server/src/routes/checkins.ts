@@ -16,18 +16,38 @@ router.get('/:connectionId', requireAuth, async (req: AuthRequest, res: Response
     );
     if (!connCheck.rows[0]) { res.status(403).json({ error: 'Forbidden' }); return; }
 
+    const before = req.query.before as string | undefined;
+    const limit = Math.min(parseInt((req.query.limit as string) || '20', 10), 100);
+
+    const params: unknown[] = [req.params.connectionId, limit + 1];
+    let whereClause = 'WHERE ci.connection_id = $1';
+    if (before) {
+      params.push(before);
+      whereClause += ` AND ci.created_at < $${params.length}`;
+    }
+
     const result = await query(
       `SELECT ci.*, u.display_name, u.avatar_url,
               m.title AS milestone_title
        FROM check_ins ci
        JOIN users u ON u.id = ci.author_id
        LEFT JOIN milestones m ON m.id = ci.milestone_id
-       WHERE ci.connection_id = $1
+       ${whereClause}
        ORDER BY ci.created_at DESC
-       LIMIT 50`,
-      [req.params.connectionId]
+       LIMIT $2`,
+      params
     );
-    res.json(result.rows);
+
+    const rows = result.rows;
+    const hasMore = rows.length > limit;
+    const messages = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore && messages.length > 0
+      ? messages[messages.length - 1].created_at instanceof Date
+        ? (messages[messages.length - 1].created_at as Date).toISOString()
+        : messages[messages.length - 1].created_at
+      : null;
+
+    res.json({ messages, hasMore, nextCursor });
   } catch { res.status(500).json({ error: 'Server error' }); }
 });
 
