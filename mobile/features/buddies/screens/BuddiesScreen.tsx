@@ -1,16 +1,17 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQueryClient } from '@tanstack/react-query';
 import { useThemeStore } from '../../../store/themeStore';
-import { useNotificationStore } from '../../../store/notificationStore';
+import { useNotificationStore, BuddyTabKey } from '../../../store/notificationStore';
 import { useBuddies } from '../hooks';
 import { BuddyCard } from '../components/BuddyCard';
-import { BuddyRequestsView } from '../components/BuddyRequestsView';
 import { Connection, BuddyGroup, TabKey } from '../types';
 
 function groupByBuddy(connections: Connection[]): BuddyGroup[] {
@@ -34,25 +35,50 @@ function groupByBuddy(connections: Connection[]): BuddyGroup[] {
 }
 
 export default function BuddiesScreen() {
-  const [showRequests, setShowRequests] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('my_goals');
   const colors = useThemeStore((s) => s.colors);
   const lastSeenAt = useNotificationStore((s) => s.lastSeenAt);
+  const subTabLastSeen = useNotificationStore((s) => s.subTabLastSeen);
   const setUnread = useNotificationStore((s) => s.setUnread);
   const loadSeenTimes = useNotificationStore((s) => s.loadSeenTimes);
+  const markSubTabSeen = useNotificationStore((s) => s.markSubTabSeen);
+  const setPendingRequestCount = useNotificationStore((s) => s.setPendingRequestCount);
   const s = useMemo(() => makeStyles(colors), [colors]);
 
-  useEffect(() => { loadSeenTimes(); }, []);
+  useEffect(() => {
+    loadSeenTimes();
+    markSubTabSeen('my_goals'); // default tab is visible on mount
+  }, []);
 
-  const { data: connectionsData, isLoading, isError, refetch, isRefetching } = useBuddies();
-  const connections = connectionsData ?? [];
+  const qc = useQueryClient();
+  const { data: connectionsData, isLoading, isError, refetch } = useBuddies();
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try { await refetch(); } finally { setManualRefreshing(false); }
+  }, [refetch]);
+  const connections = useMemo(() => {
+    const raw = connectionsData ?? [];
+    const seen = new Set<string>();
+    return raw.filter((c) => {
+      const key = `${c.buddy_id}:${c.goal_id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [connectionsData]);
 
   const accepted = useMemo(() => connections.filter((c) => c.status === 'accepted'), [connections]);
   const incomingPending = useMemo(() => connections.filter((c) => c.status === 'pending' && c.is_incoming), [connections]);
-  const overdueConns = useMemo(() => accepted.filter((c) => c.overdue_count > 0), [accepted]);
 
   const lastSeenAtRef = useRef(lastSeenAt);
   lastSeenAtRef.current = lastSeenAt;
+
+  // Keep pending request count in store for bottom nav badge
+  useEffect(() => {
+    setPendingRequestCount(incomingPending.length);
+  }, [incomingPending.length]);
+
   useEffect(() => {
     const unread = accepted.filter(
       (c) => !c.is_last_message_mine && c.last_message_at &&
@@ -62,6 +88,30 @@ export default function BuddiesScreen() {
     setUnread(ids, ids.length);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accepted]);
+
+  // Compute per-sub-tab unread counts (new messages since last tab visit)
+  const subTabBadge = useMemo(() => {
+    const connUnread = (conns: Connection[], tabKey: BuddyTabKey) => {
+      const since = subTabLastSeen[tabKey] ?? '';
+      return conns.filter(
+        (c) => !c.is_last_message_mine && c.last_message_at && c.last_message_at > since
+      ).length;
+    };
+    const coop = accepted.filter((c) => c.connection_type === 'coop');
+    const accountability = accepted.filter((c) => c.connection_type !== 'coop');
+    return {
+      my_goals: connUnread(accountability.filter((c) => c.is_my_goal), 'my_goals'),
+      coaching:  connUnread(accountability.filter((c) => !c.is_my_goal), 'coaching')
+               + incomingPending.length
+               + accepted.filter((c) => c.overdue_count > 0 || c.late_today_count > 0).length,
+      coop:      connUnread(coop, 'coop'),
+    };
+  }, [accepted, incomingPending, subTabLastSeen]);
+
+  const handleTabChange = useCallback((key: TabKey) => {
+    setActiveTab(key);
+    markSubTabSeen(key as BuddyTabKey);
+  }, [markSubTabSeen]);
 
   const tabAccepted = useMemo(() => {
     const coop = accepted.filter((c) => c.connection_type === 'coop');
@@ -87,10 +137,6 @@ export default function BuddiesScreen() {
     </SafeAreaView>
   );
 
-  if (showRequests) {
-    return <BuddyRequestsView requests={incomingPending} onBack={() => setShowRequests(false)} />;
-  }
-
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'my_goals', label: 'My Goals' },
     { key: 'coaching', label: 'Coaching' },
@@ -108,7 +154,7 @@ export default function BuddiesScreen() {
       <View style={s.headerRow}>
         <Text style={s.title}>Buddies</Text>
         {incomingPending.length > 0 && (
-          <TouchableOpacity style={s.requestsBadge} onPress={() => setShowRequests(true)}>
+          <TouchableOpacity style={s.requestsBadge} onPress={() => router.push('/buddy-requests')}>
             <MaterialCommunityIcons name="account-clock" size={18} color="#fff" />
             <Text style={s.requestsBadgeText}>Requests</Text>
             <View style={s.requestsCount}>
@@ -120,50 +166,40 @@ export default function BuddiesScreen() {
 
       {/* Sub-tabs */}
       <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
-        {TABS.map((t) => (
-          <TouchableOpacity key={t.key} style={s.tabItem} onPress={() => setActiveTab(t.key)}>
-            <Text style={[s.tabText, { color: activeTab === t.key ? colors.primary : colors.textSecondary }]}>
-              {t.label}
-            </Text>
-            {activeTab === t.key && <View style={[s.tabUnderline, { backgroundColor: colors.primary }]} />}
-          </TouchableOpacity>
-        ))}
+        {TABS.map((t) => {
+          const badge = subTabBadge[t.key as BuddyTabKey] ?? 0;
+          return (
+            <TouchableOpacity key={t.key} style={s.tabItem} onPress={() => handleTabChange(t.key)}>
+              <View style={s.tabLabelRow}>
+                <Text style={[s.tabText, { color: activeTab === t.key ? colors.primary : colors.textSecondary }]}>
+                  {t.label}
+                </Text>
+                {badge > 0 && (
+                  <View style={[s.tabBadge, { backgroundColor: colors.primary }]}>
+                    <Text style={s.tabBadgeText}>{badge > 9 ? '9+' : badge}</Text>
+                  </View>
+                )}
+              </View>
+              {activeTab === t.key && <View style={[s.tabUnderline, { backgroundColor: colors.primary }]} />}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      {/* Overdue nudge banners */}
-      {overdueConns.length > 0 && (
-        <View style={s.nudgeList}>
-          {overdueConns.map((conn) => (
-            <TouchableOpacity
-              key={conn.id}
-              style={s.nudgeCard}
-              onPress={() => router.push(`/chat/${conn.id}` as any)}
-              activeOpacity={0.75}
-            >
-              <View style={s.nudgeIcon}>
-                <MaterialCommunityIcons name="bell-ring" size={16} color="#FF6B6B" />
-              </View>
-              <View style={s.nudgeBody}>
-                <Text style={s.nudgeTitle}>
-                  <Text style={s.nudgeName}>{conn.buddy_name}</Text>
-                  {' is behind on '}
-                  <Text style={s.nudgeName}>{conn.goal_title}</Text>
-                </Text>
-                <Text style={s.nudgeSub}>
-                  {conn.overdue_count} milestone{conn.overdue_count > 1 ? 's' : ''} overdue · tap to check in
-                </Text>
-              </View>
-              <MaterialCommunityIcons name="chevron-right" size={16} color="#FF6B6B" />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
       <ScrollView
         contentContainerStyle={s.content}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
       >
         {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
+
+        {activeTab === 'my_goals' && !isLoading && (
+          <TouchableOpacity style={[s.goalsLink, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.navigate({ pathname: '/(tabs)/goals', params: { tab: 'goals' } })} activeOpacity={0.7}>
+            <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={16} color={colors.primary} />
+            <Text style={[s.goalsLinkText, { color: colors.primary }]}>View my goals</Text>
+            <MaterialCommunityIcons name="chevron-right" size={16} color={colors.primary} />
+          </TouchableOpacity>
+        )}
 
         {buddyGroups.length > 0 && (
           <View style={s.section}>
@@ -189,37 +225,31 @@ const makeStyles = (colors: any) => StyleSheet.create({
   container:       { flex: 1, backgroundColor: colors.background },
 
   headerRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  title:           { fontSize: 26, fontWeight: '700', color: colors.text },
+  title:           { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text },
   requestsBadge:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
-  requestsBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  requestsBadgeText: { color: '#fff', fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.bold },
   requestsCount:   { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
-  requestsCountText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-
-  nudgeList:       { paddingHorizontal: 16, paddingTop: 8, gap: 6 },
-  nudgeCard:       {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#FF6B6B12', borderWidth: 1, borderColor: '#FF6B6B30',
-    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
-  },
-  nudgeIcon:       { width: 30, height: 30, borderRadius: 15, backgroundColor: '#FF6B6B18', justifyContent: 'center', alignItems: 'center' },
-  nudgeBody:       { flex: 1, gap: 2 },
-  nudgeTitle:      { fontSize: 13, color: colors.text, lineHeight: 18 },
-  nudgeName:       { fontWeight: '700' },
-  nudgeSub:        { fontSize: 12, color: '#FF6B6B', fontWeight: '500' },
+  requestsCountText: { color: '#fff', fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
 
   tabBar:          { flexDirection: 'row', paddingHorizontal: 20, borderBottomWidth: 1, marginBottom: 4 },
   tabItem:         { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  tabText:         { fontSize: 14, fontWeight: '600' },
+  tabLabelRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  tabText:         { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
   tabUnderline:    { position: 'absolute', bottom: 0, left: 8, right: 8, height: 2, borderRadius: 1 },
+  tabBadge:        { minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  tabBadgeText:    { color: '#fff', fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
   content:         { padding: 16, gap: 16 },
   section:         { gap: 10 },
 
   empty:           { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyTitle:      { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptyText:       { fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
+  emptyTitle:      { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text },
+  emptyText:       { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, textAlign: 'center' },
 
   errorState:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  errorText:       { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
+  errorText:       { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, textAlign: 'center' },
   retryBtn:        { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
-  retryBtnText:    { color: '#fff', fontWeight: '700', fontSize: 14 },
+  retryBtnText:    { color: '#fff', fontWeight: FW.bold, fontSize: FS.secondary, lineHeight: LH.secondary },
+
+  goalsLink:       { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
+  goalsLinkText:   { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
 });

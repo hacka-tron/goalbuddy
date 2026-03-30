@@ -2,6 +2,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GOAL_CATEGORIES } from '../../../lib/constants';
 import { WinItem } from '../types';
+import { FS, FW, LH } from '../../../theme/typography';
 
 function formatWhen(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -51,12 +52,12 @@ const s = StyleSheet.create({
   card:           { borderRadius: 16, padding: 16, gap: 10, borderWidth: 1 },
   cardHeader:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar:         { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  avatarText:     { fontWeight: '700', fontSize: 16 },
+  avatarText:     { fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
   headerText:     { flex: 1 },
-  name:           { fontSize: 14, fontWeight: '700' },
-  nameSuffix:     { fontWeight: '400' },
-  when:           { fontSize: 12, marginTop: 1 },
-  milestoneTitle: { fontSize: 16, fontWeight: '700' },
+  name:           { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.bold },
+  nameSuffix:     { fontWeight: FW.regular },
+  when:           { fontSize: FS.caption, lineHeight: LH.caption, marginTop: 1 },
+  milestoneTitle: { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold },
   goalRow:        { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  goalText:       { fontSize: 13 },
+  goalText:       { fontSize: FS.secondary, lineHeight: LH.secondary },
 });

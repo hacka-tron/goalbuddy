@@ -1,5 +1,5 @@
 import { apiFetch } from '../../lib/api';
-import { Goal, Milestone, PublicGoal } from './types';
+import { Goal, Milestone, MilestoneStats, PublicGoal } from './types';
 
 export const fetchGoals = (): Promise<Goal[]> => apiFetch('/goals');
 
@@ -21,6 +21,7 @@ export const createGoal = (payload: {
   category: string;
   description: string;
   isPublic: boolean;
+  coopOpen?: boolean;
 }): Promise<Goal> =>
   apiFetch('/goals', { method: 'POST', body: JSON.stringify(payload) });
 
@@ -34,20 +35,39 @@ export const toggleMilestone = (ms: Milestone, goalId: string): Promise<unknown>
       body: JSON.stringify({ completed: !ms.is_done_this_period }),
     });
   }
+  // all recurring frequencies (daily, weekly, monthly, x_weekly, custom_days) use the log endpoint
+  if (ms.is_done_this_period) {
+    return apiFetch(`/milestones/goal/${goalId}/log/${ms.id}`, { method: 'DELETE' });
+  }
   return apiFetch(`/milestones/goal/${goalId}/log`, {
     method: 'POST',
     body: JSON.stringify({ milestoneId: ms.id }),
   });
 };
 
-export const createMilestone = (goalId: string, title: string, frequency: Milestone['frequency']): Promise<Milestone> =>
+export const fetchGoalStats = (goalId: string): Promise<MilestoneStats[]> =>
+  apiFetch(`/goals/${goalId}/stats`);
+
+export const deleteGoal = (id: string): Promise<void> =>
+  apiFetch(`/goals/${id}`, { method: 'DELETE' });
+
+export const createMilestone = (
+  goalId: string,
+  title: string,
+  frequency: Milestone['frequency'],
+  daysPerWeek?: number,
+  customDays?: string,
+): Promise<Milestone> =>
   apiFetch('/milestones', {
     method: 'POST',
-    body: JSON.stringify({ goalId, title, frequency }),
+    body: JSON.stringify({ goalId, title, frequency, daysPerWeek, customDays }),
   });
 
 export const requestBuddy = (goalId: string): Promise<unknown> =>
   apiFetch('/buddies/request', { method: 'POST', body: JSON.stringify({ goalId }) });
+
+export const coopJoinGoal = (goalId: string): Promise<{ connection: unknown; newGoalId: string }> =>
+  apiFetch('/buddies/request', { method: 'POST', body: JSON.stringify({ goalId, coopJoin: true }) });
 
 export const useGoalTemplate = (sourceGoalId: string): Promise<unknown> =>
   apiFetch('/goals/from-template', { method: 'POST', body: JSON.stringify({ sourceGoalId }) });

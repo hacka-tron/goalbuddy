@@ -2,44 +2,42 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { FS, FW, LH } from '../../../theme/typography';
 import { useThemeStore } from '../../../store/themeStore';
 import { ActivityBadge } from '../../../shared/components/ActivityBadge';
 import { GOAL_CATEGORIES } from '../../../lib/constants';
-import { useRespondToRequest } from '../hooks';
-import { Connection } from '../types';
+import { useBuddies, useRespondToRequest } from '../hooks';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-export function BuddyRequestsView({
-  requests,
-  onBack,
-}: {
-  requests: Connection[];
-  onBack: () => void;
-}) {
+export function BuddyRequestsView() {
   const colors = useThemeStore((s) => s.colors);
   const s = useMemo(() => makeStyles(colors), [colors]);
   const respondMutation = useRespondToRequest();
+  const { data: connections = [], isLoading } = useBuddies();
+  const requests = connections.filter((c) => c.status === 'pending' && c.is_incoming);
 
   return (
-    <SafeAreaView style={s.container}>
+    <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.requestsHeader}>
-        <TouchableOpacity onPress={onBack}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primary} />
         </TouchableOpacity>
         <Text style={s.requestsHeaderTitle}>Buddy Requests</Text>
-        <View style={{ width: 22 }} />
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={s.content}>
-        {requests.length === 0 && (
+        {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
+        {!isLoading && requests.length === 0 && (
           <View style={s.empty}>
             <MaterialCommunityIcons name="account-clock-outline" size={52} color={colors.border} />
             <Text style={s.emptyTitle}>No pending requests</Text>
           </View>
         )}
 
-        {requests.map((req) => {
+        {!isLoading && requests.map((req) => {
           const cat = GOAL_CATEGORIES.find((c) => c.key === req.goal_category);
           const isPending = respondMutation.isPending && respondMutation.variables?.id === req.id;
           return (
@@ -81,6 +79,12 @@ export function BuddyRequestsView({
               <View style={s.requestGoalRow}>
                 {cat && <MaterialCommunityIcons name={cat.icon as MCIName} size={14} color={colors.textSecondary} />}
                 <Text style={s.requestGoalTitle} numberOfLines={1}>{req.goal_title}</Text>
+                {req.connection_type === 'coop' && (
+                  <View style={[s.coopBadge, { backgroundColor: colors.primaryLight }]}>
+                    <MaterialCommunityIcons name="account-multiple" size={11} color={colors.primary} />
+                    <Text style={[s.coopBadgeText, { color: colors.primary }]}>Co-op</Text>
+                  </View>
+                )}
               </View>
 
               <View style={s.pendingActions}>
@@ -113,27 +117,30 @@ const makeStyles = (colors: any) => StyleSheet.create({
   container:       { flex: 1, backgroundColor: colors.background },
   content:         { padding: 16, gap: 16 },
 
-  requestsHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  requestsHeaderTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  requestsHeader:  { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
+  requestsHeaderTitle: { flex: 1, fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text, textAlign: 'center' },
+  backBtn:         { padding: 4 },
   requestCard:     { backgroundColor: colors.card, borderRadius: 18, padding: 16, gap: 14 },
   requestCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   avatarCircleLg:  { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  avatarTextLg:    { fontSize: 22, fontWeight: '700', color: colors.primary },
-  requestName:     { fontSize: 17, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  avatarTextLg:    { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.primary },
+  requestName:     { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text, marginBottom: 4 },
   statsRow:        { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.background, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8 },
   statItem:        { flex: 1, alignItems: 'center', gap: 2 },
-  statValue:       { fontSize: 17, fontWeight: '800', color: colors.text },
-  statLabel:       { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
+  statValue:       { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.semibold, color: colors.text },
+  statLabel:       { fontSize: FS.caption, lineHeight: LH.caption, color: colors.textSecondary, fontWeight: FW.medium },
   statDivider:     { width: 1, height: 32, backgroundColor: colors.border },
   requestGoalRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.background, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-  requestGoalTitle: { fontSize: 13, color: colors.textSecondary, fontWeight: '500', flex: 1 },
+  requestGoalTitle: { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, fontWeight: FW.medium, flex: 1 },
+  coopBadge:        { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10 },
+  coopBadgeText:    { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
 
   pendingActions:  { flexDirection: 'row', gap: 10, marginTop: 4 },
   declineBtn:      { flex: 1, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
-  declineBtnText:  { color: colors.textSecondary, fontWeight: '600' },
+  declineBtnText:  { color: colors.textSecondary, fontWeight: FW.semibold },
   acceptBtn:       { flex: 1, padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: 'center' },
-  acceptBtnText:   { color: '#fff', fontWeight: '600' },
+  acceptBtnText:   { color: '#fff', fontWeight: FW.semibold },
 
   empty:           { alignItems: 'center', paddingTop: 60, gap: 8 },
-  emptyTitle:      { fontSize: 18, fontWeight: '700', color: colors.text },
+  emptyTitle:      { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text },
 });

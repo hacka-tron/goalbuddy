@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, Alert, ActivityIndicator,
 } from 'react-native';
+import { FS, FW, LH } from '../../../theme/typography';
 import { router } from 'expo-router';
 import { useAuthStore } from '../../../store/authStore';
 import { apiFetch } from '../../../lib/api';
@@ -84,18 +85,19 @@ const makeStyles = (colors: any) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { padding: 24, paddingTop: 60 },
   header: { alignItems: 'center', marginBottom: 36 },
-  logo: { fontSize: 48, marginBottom: 10 },
-  title: { fontSize: 28, fontWeight: '700', color: colors.text },
-  subtitle: { fontSize: 15, color: colors.textSecondary, marginTop: 4 },
+  logo: { fontSize: FS.display, lineHeight: LH.display, marginBottom: 10 },
+  title: { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text },
+  subtitle: { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, marginTop: 4 },
   form: { gap: 10 },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text, marginBottom: 4 },
+  label: { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold, color: colors.text, marginBottom: 4 },
   input: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
-    fontSize: 16,
+    fontSize: FS.body,
+    lineHeight: LH.body,
     color: colors.text,
     marginBottom: 4,
   },
@@ -106,8 +108,8 @@ const makeStyles = (colors: any) => StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  btnText: { color: '#fff', fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold },
   linkBtn: { alignItems: 'center', paddingVertical: 12 },
-  linkText: { color: colors.textSecondary, fontSize: 14 },
-  linkAccent: { color: colors.primary, fontWeight: '600' },
+  linkText: { color: colors.textSecondary, fontSize: FS.secondary, lineHeight: LH.secondary },
+  linkAccent: { color: colors.primary, fontWeight: FW.semibold },
 });

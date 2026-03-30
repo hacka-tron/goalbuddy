@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { ACTIVITY_LEVELS } from '../../lib/constants';
+import { FS, FW, LH } from '../../theme/typography';
 
 interface Props {
   level: string;
@@ -17,9 +18,9 @@ export const ActivityBadge = ({ level, small }: Props) => {
 };
 
 const s = StyleSheet.create({
-  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6 },
+  badge: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start' },
   small: { paddingHorizontal: 5, paddingVertical: 2 },
   dot: { width: 5, height: 5, borderRadius: 3 },
-  label: { fontSize: 11, fontWeight: '600' },
-  labelSmall: { fontSize: 10 },
+  label: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
+  labelSmall: { fontSize: FS.caption, lineHeight: LH.caption },
 });

@@ -5,14 +5,17 @@ import {
   fetchPublicGoals,
   fetchGoalMilestones,
   fetchMyMilestones,
+  fetchGoalStats,
   createGoal,
   patchGoalPublic,
   toggleMilestone as toggleMilestoneApi,
   createMilestone as createMilestoneApi,
+  deleteGoal as deleteGoalApi,
   requestBuddy as requestBuddyApi,
+  coopJoinGoal as coopJoinGoalApi,
   useGoalTemplate as useGoalTemplateApi,
 } from './api';
-import { Goal, Milestone } from './types';
+import { Goal, Milestone, MilestoneStats } from './types';
 
 export function useGoals() {
   return useQuery<Goal[]>({
@@ -46,7 +49,7 @@ export function useMyMilestones() {
 export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { title: string; category: string; description: string; isPublic: boolean }) =>
+    mutationFn: (payload: { title: string; category: string; description: string; isPublic: boolean; coopOpen?: boolean }) =>
       createGoal(payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['goals'] });
@@ -108,10 +111,22 @@ export function useToggleMyMilestone() {
 export function useCreateMilestone(goalId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ title, frequency }: { title: string; frequency: Milestone['frequency'] }) =>
-      createMilestoneApi(goalId, title, frequency),
+    mutationFn: ({ title, frequency, daysPerWeek, customDays }: { title: string; frequency: Milestone['frequency']; daysPerWeek?: number; customDays?: string }) =>
+      createMilestoneApi(goalId, title, frequency, daysPerWeek, customDays),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['milestones', 'goal', goalId] });
+      qc.invalidateQueries({ queryKey: ['milestones', 'me'] });
+    },
+    onError: (e: Error) => Alert.alert('Error', e.message),
+  });
+}
+
+export function useDeleteGoal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteGoalApi(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
       qc.invalidateQueries({ queryKey: ['milestones', 'me'] });
     },
     onError: (e: Error) => Alert.alert('Error', e.message),
@@ -127,6 +142,28 @@ export function useRequestBuddy() {
       qc.invalidateQueries({ queryKey: ['buddies'] });
     },
     onError: (e: Error) => Alert.alert('Error', e.message),
+  });
+}
+
+export function useCoopJoin() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (goalId: string) => coopJoinGoalApi(goalId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['goals'] });
+      qc.invalidateQueries({ queryKey: ['goals', 'public'] });
+      qc.invalidateQueries({ queryKey: ['buddies'] });
+      qc.invalidateQueries({ queryKey: ['milestones', 'me'] });
+    },
+    onError: (e: Error) => Alert.alert('Error', e.message),
+  });
+}
+
+export function useGoalStats(goalId: string | null) {
+  return useQuery<MilestoneStats[]>({
+    queryKey: ['goal-stats', goalId],
+    queryFn: () => fetchGoalStats(goalId!),
+    enabled: !!goalId,
   });
 }
 

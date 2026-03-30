@@ -195,7 +195,7 @@ export const MOODS = [
 ] as const;
 
 export const ACTIVITY_LEVELS: Record<string, { label: string; color: string }> = {
-  very_active: { label: 'Elite',    color: '#6A9E7F' },
+  very_active: { label: 'On Fire',  color: '#6A9E7F' },
   active:      { label: 'Active',   color: '#F0B429' },
   occasional:  { label: 'Casual',   color: '#8A8A8A' },
   inactive:    { label: 'Inactive', color: '#E8806A' },

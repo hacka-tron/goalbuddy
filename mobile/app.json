@@ -25,5 +25,8 @@
       "package": "com.goalbuddy.app"
     },
     "scheme": "goalbuddy",
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

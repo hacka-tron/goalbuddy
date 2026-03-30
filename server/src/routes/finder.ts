@@ -27,33 +27,40 @@ router.get('/deck', requireAuth, async (req: AuthRequest, res: Response): Promis
     }
 
     const result = await query(
-      `SELECT
-        u.id, u.display_name, u.username, u.avatar_url, u.bio,
-        g.id AS goal_id, g.title AS goal_title, g.category,
-        a.activity_level, a.current_streak, a.total_checkins, a.milestones_completed,
-        (SELECT COUNT(*) FROM goals g2
-         JOIN goals g3 ON g3.category = g2.category AND g3.user_id = $1 AND g3.status = 'active'
-         WHERE g2.user_id = u.id AND g2.status = 'active' AND g2.is_public = TRUE) AS shared_goal_count
-       FROM users u
-       JOIN goals g ON g.user_id = u.id AND g.status = 'active' AND g.is_public = TRUE
-       JOIN goals my_goal ON my_goal.id = $2 AND my_goal.category = g.category
-       LEFT JOIN activity_stats a ON a.user_id = u.id
-       WHERE u.id != $1
-         AND u.id NOT IN (
-           SELECT CASE WHEN requester_id = $1 THEN receiver_id ELSE requester_id END
-           FROM buddy_connections
-           WHERE (requester_id = $1 OR receiver_id = $1)
-             AND goal_id = $2
-             AND status IN ('pending','accepted')
-         )
-         AND NOT EXISTS (
-           SELECT 1 FROM swipe_actions sa
-           WHERE sa.swiper_id = $1
-             AND sa.swiped_id = u.id
-             AND sa.goal_id = $2
-         )
-       ORDER BY a.activity_level DESC, shared_goal_count DESC
-       LIMIT 50`,
+      `SELECT * FROM (
+        SELECT DISTINCT ON (u.id)
+          u.id, u.display_name, u.username, u.avatar_url, u.bio,
+          g.id AS goal_id, g.title AS goal_title, g.category,
+          a.activity_level, a.current_streak, a.total_checkins, a.milestones_completed,
+          (SELECT COUNT(*) FROM goals g2
+           JOIN goals g3 ON g3.category = g2.category AND g3.user_id = $1 AND g3.status = 'active'
+           WHERE g2.user_id = u.id AND g2.status = 'active' AND g2.is_public = TRUE) AS shared_goal_count
+        FROM users u
+        JOIN goals g ON g.user_id = u.id AND g.status = 'active' AND g.is_public = TRUE
+          AND NOT EXISTS (
+            SELECT 1 FROM buddy_connections bc2
+            WHERE bc2.goal_id = g.id AND bc2.status = 'accepted'
+          )
+        JOIN goals my_goal ON my_goal.id = $2 AND my_goal.category = g.category
+        LEFT JOIN activity_stats a ON a.user_id = u.id
+        WHERE u.id != $1
+          AND u.id NOT IN (
+            SELECT CASE WHEN requester_id = $1 THEN receiver_id ELSE requester_id END
+            FROM buddy_connections
+            WHERE (requester_id = $1 OR receiver_id = $1)
+              AND (goal_id = $2 OR receiver_goal_id = $2)
+              AND status IN ('pending','accepted')
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM swipe_actions sa
+            WHERE sa.swiper_id = $1
+              AND sa.swiped_id = u.id
+              AND sa.goal_id = $2
+          )
+        ORDER BY u.id, a.activity_level DESC NULLS LAST
+      ) sub
+      ORDER BY activity_level DESC NULLS LAST, shared_goal_count DESC
+      LIMIT 50`,
       [req.userId, goalId]
     );
 
@@ -66,14 +73,14 @@ router.get('/deck', requireAuth, async (req: AuthRequest, res: Response): Promis
 
 // POST /finder/swipe
 router.post('/swipe', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { swipedId, action, goalId } = req.body;
+  const { swipedId, action, goalId, cardGoalId } = req.body;
   if (!swipedId || !action || !goalId) {
     res.status(400).json({ error: 'swipedId, action, and goalId required' });
     return;
   }
 
   try {
-    // Persist swipe to DB using WHERE NOT EXISTS to handle partial index
+    // Persist swipe to DB
     await query(
       `INSERT INTO swipe_actions (swiper_id, swiped_id, action, mode, goal_id)
        SELECT $1, $2, $3, 'specific', $4
@@ -87,32 +94,40 @@ router.post('/swipe', requireAuth, async (req: AuthRequest, res: Response): Prom
     let connection = null;
 
     if (action === 'like') {
-      // Check if swiped user has a @test.com email — auto-swipe back
+      // Auto-swipe back for @test.com users (using cardGoalId as their goal)
       const userCheck = await query(`SELECT email FROM users WHERE id = $1`, [swipedId]);
       const swipedEmail: string = userCheck.rows[0]?.email || '';
-
-      if (swipedEmail.includes('@test.com')) {
-        // Insert reverse swipe from the test user
+      if (swipedEmail.includes('@test.com') && cardGoalId) {
         await query(
           `INSERT INTO swipe_actions (swiper_id, swiped_id, action, mode, goal_id)
            SELECT $1, $2, 'like', 'specific', $3
            WHERE NOT EXISTS (
              SELECT 1 FROM swipe_actions WHERE swiper_id = $1 AND swiped_id = $2 AND goal_id = $3
            )`,
-          [swipedId, req.userId, goalId]
+          [swipedId, req.userId, cardGoalId]
         );
+      }
 
-        // Check for a resulting pending connection
-        const connCheck = await query(
-          `SELECT id FROM buddy_connections
-           WHERE (requester_id = $1 OR receiver_id = $1)
-             AND (requester_id = $2 OR receiver_id = $2)
-             AND status = 'pending'`,
-          [req.userId, swipedId]
+      // Check for mutual like — did the other user already like us?
+      const reverseSwipe = await query(
+        `SELECT goal_id FROM swipe_actions
+         WHERE swiper_id = $1 AND swiped_id = $2 AND action = 'like'
+         LIMIT 1`,
+        [swipedId, req.userId]
+      );
+
+      if (reverseSwipe.rows[0]) {
+        const theirGoalId = reverseSwipe.rows[0].goal_id;
+        const conn = await query(
+          `INSERT INTO buddy_connections (requester_id, receiver_id, goal_id, receiver_goal_id, status, accepted_at)
+           VALUES ($1, $2, $3, $4, 'accepted', NOW())
+           ON CONFLICT (requester_id, receiver_id, goal_id) DO NOTHING
+           RETURNING *`,
+          [swipedId, req.userId, theirGoalId, goalId]
         );
-        if (connCheck.rows[0]) {
+        if (conn.rows[0]) {
           matched = true;
-          connection = connCheck.rows[0];
+          connection = conn.rows[0];
         }
       }
     }

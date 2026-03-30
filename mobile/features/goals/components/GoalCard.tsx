@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { GOAL_CATEGORIES } from '../../../lib/constants';
 import { ActivityBadge } from '../../../shared/components/ActivityBadge';
 import { Goal } from '../types';
+import { FS, FW, LH } from '../../../theme/typography';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -70,11 +71,11 @@ const makeStyles = (colors: any) => StyleSheet.create({
   goalCard:         { borderRadius: 16, padding: 16, gap: 6 },
   goalCardTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   goalCardRight:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  goalCardTitle:    { fontSize: 16, fontWeight: '700' },
-  goalCardDesc:     { fontSize: 13 },
+  goalCardTitle:    { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold },
+  goalCardDesc:     { fontSize: FS.secondary, lineHeight: LH.secondary },
   buddyRow:         { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   buddyStatusPill:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  buddyStatusText:  { fontSize: 12, fontWeight: '600' },
+  buddyStatusText:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
   catBadge:         { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  catLabel:         { fontSize: 12, fontWeight: '600' },
+  catLabel:         { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
 });

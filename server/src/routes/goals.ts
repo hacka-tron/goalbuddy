@@ -63,7 +63,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
           WHERE bc2.goal_id = g.id AND bc2.status = 'pending'
         ) AS has_pending_request
        FROM goals g
-       LEFT JOIN buddy_connections bc ON bc.goal_id = g.id AND bc.status = 'accepted'
+       LEFT JOIN buddy_connections bc ON (bc.goal_id = g.id OR bc.receiver_goal_id = g.id) AND bc.status = 'accepted'
        LEFT JOIN users u ON u.id = CASE WHEN bc.requester_id = $1 THEN bc.receiver_id ELSE bc.requester_id END
        LEFT JOIN activity_stats a ON a.user_id = u.id
        WHERE g.user_id = $1
@@ -110,16 +110,104 @@ router.post('/from-template', requireAuth, async (req: AuthRequest, res: Respons
 
 // POST /goals
 router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { title, category, description, targetDate, isPublic } = req.body;
+  const { title, category, description, targetDate, isPublic, coopOpen } = req.body;
   if (!title || !category) { res.status(400).json({ error: 'title and category required' }); return; }
   try {
+    const isCoop = !!coopOpen;
     const result = await query(
-      `INSERT INTO goals (user_id, title, category, description, target_date, is_public)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.userId, title, category, description || null, targetDate || null, isPublic !== false]
+      `INSERT INTO goals (user_id, title, category, description, target_date, is_public, coop_open)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.userId, title, category, description || null, targetDate || null, isCoop ? true : isPublic !== false, isCoop]
     );
     res.status(201).json(result.rows[0]);
   } catch { res.status(500).json({ error: 'Server error' }); }
+});
+
+// GET /goals/:goalId/stats  — streak + completion rate for recurring milestones
+router.get('/:goalId/stats', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { goalId } = req.params;
+
+    const msResult = await query(
+      `SELECT m.id, m.title, m.frequency, m.created_at::date AS created_date
+       FROM milestones m
+       WHERE m.goal_id = $1 AND m.user_id = $2 AND m.frequency != 'once'
+       ORDER BY m.created_at`,
+      [goalId, req.userId]
+    );
+
+    if (msResult.rows.length === 0) { res.json([]); return; }
+
+    const getPeriodKey = (d: Date, freq: string): string => {
+      const dt = new Date(d);
+      dt.setHours(0, 0, 0, 0);
+      if (freq === 'daily') return dt.toISOString().split('T')[0];
+      if (freq === 'weekly') {
+        const day = dt.getDay();
+        dt.setDate(dt.getDate() - ((day + 6) % 7));
+        return dt.toISOString().split('T')[0];
+      }
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-01`;
+    };
+
+    const prevPeriod = (d: Date, freq: string): Date => {
+      const dt = new Date(d);
+      if (freq === 'daily') dt.setDate(dt.getDate() - 1);
+      else if (freq === 'weekly') dt.setDate(dt.getDate() - 7);
+      else dt.setMonth(dt.getMonth() - 1);
+      return dt;
+    };
+
+    const stats = await Promise.all(msResult.rows.map(async (ms: any) => {
+      const logsResult = await query(
+        `SELECT period_start::text FROM milestone_logs WHERE milestone_id = $1 ORDER BY period_start ASC`,
+        [ms.id]
+      );
+      const logs: string[] = logsResult.rows.map((r: any) => r.period_start);
+      const logSet = new Set(logs);
+
+      const now = new Date(); now.setHours(0, 0, 0, 0);
+      const created = new Date(ms.created_date); created.setHours(0, 0, 0, 0);
+
+      // Streak: start from today (if done) else yesterday/last period, count back
+      let startDate = new Date(now);
+      if (!logSet.has(getPeriodKey(now, ms.frequency))) startDate = prevPeriod(now, ms.frequency);
+      let streak = 0;
+      let checkDate = new Date(startDate);
+      while (checkDate >= created && logSet.has(getPeriodKey(checkDate, ms.frequency))) {
+        streak++;
+        checkDate = prevPeriod(checkDate, ms.frequency);
+      }
+
+      // Total expected: completed periods from creation up to (but not including) current period
+      const lastCompletedPeriod = prevPeriod(now, ms.frequency);
+      let totalExpected = 0;
+      if (ms.frequency === 'daily') {
+        totalExpected = Math.max(0, Math.floor((lastCompletedPeriod.getTime() - created.getTime()) / 86400000) + 1);
+      } else if (ms.frequency === 'weekly') {
+        const cw = new Date(created); cw.setDate(created.getDate() - ((created.getDay() + 6) % 7));
+        const lw = new Date(lastCompletedPeriod); lw.setDate(lastCompletedPeriod.getDate() - ((lastCompletedPeriod.getDay() + 6) % 7));
+        totalExpected = Math.max(0, Math.floor((lw.getTime() - cw.getTime()) / (7 * 86400000)) + 1);
+      } else {
+        const cm = new Date(created.getFullYear(), created.getMonth(), 1);
+        const lm = new Date(lastCompletedPeriod.getFullYear(), lastCompletedPeriod.getMonth(), 1);
+        totalExpected = Math.max(0, (lm.getFullYear() - cm.getFullYear()) * 12 + (lm.getMonth() - cm.getMonth()) + 1);
+      }
+
+      const totalCompleted = Math.min(logs.length, totalExpected);
+      return {
+        id: ms.id,
+        title: ms.title,
+        frequency: ms.frequency,
+        streak,
+        total_completed: totalCompleted,
+        total_expected: totalExpected,
+        completion_rate: totalExpected > 0 ? totalCompleted / totalExpected : 0,
+      };
+    }));
+
+    res.json(stats);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // PATCH /goals/:id

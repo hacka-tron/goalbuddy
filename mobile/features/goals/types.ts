@@ -6,6 +6,7 @@ export type Goal = {
   target_date: string | null;
   status: string;
   is_public: boolean;
+  coop_open: boolean;
   connection_id: string | null;
   connection_status: string | null;
   buddy_name: string | null;
@@ -20,7 +21,9 @@ export type Milestone = {
   description: string | null;
   due_date: string | null;
   completed_at: string | null;
-  frequency: 'once' | 'daily' | 'weekly' | 'monthly';
+  frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'x_weekly' | 'custom_days';
+  days_per_week?: number;
+  custom_days?: string;
   is_done_this_period: boolean;
   goal_title: string;
   goal_category: string;
@@ -42,3 +45,13 @@ export type PublicGoal = {
 };
 
 export type MsFilter = 'today' | 'week' | 'month' | 'all';
+
+export type MilestoneStats = {
+  id: string;
+  title: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  streak: number;
+  total_completed: number;
+  total_expected: number;
+  completion_rate: number;
+};

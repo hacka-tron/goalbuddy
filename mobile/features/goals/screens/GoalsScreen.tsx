@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TouchableWithoutFeedback, Modal, TextInput, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { FS, FW, LH } from '../../../theme/typography';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,33 +18,56 @@ import { Goal, Milestone, PublicGoal, MsFilter } from '../types';
 import {
   useGoals,
   useGoalMilestones,
+  useGoalStats,
   usePatchGoalPublic,
   useToggleMilestone,
   useCreateMilestone,
   useToggleMyMilestone,
   useMyMilestones,
-  useRequestBuddy,
+  useCoopJoin,
   useGoalTemplate,
   usePublicGoals,
   useCreateGoal,
+  useDeleteGoal,
 } from '../hooks';
+import { createMilestone as createMilestoneApi } from '../api';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
-const FREQ_LABELS: Record<Milestone['frequency'], string> = {
-  once: 'Once', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
-};
+const DAY_NAMES: Record<number, string> = { 1: 'M', 2: 'T', 3: 'W', 4: 'T', 5: 'F', 6: 'S', 7: 'S' };
+const DAY_FULL_NAMES: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 7: 'Sun' };
+
+function freqLabel(ms: Milestone): string {
+  switch (ms.frequency) {
+    case 'daily':   return 'Daily';
+    case 'weekly':  return 'Weekly';
+    case 'monthly': return 'Monthly';
+    case 'once':    return 'Once';
+    case 'x_weekly': {
+      const n = ms.days_per_week ?? 3;
+      return `${n}\u00d7/week`;
+    }
+    case 'custom_days': {
+      if (!ms.custom_days) return 'Custom';
+      const days = ms.custom_days.split(',').map(Number).filter(Boolean).sort((a, b) => a - b);
+      return days.map((d) => DAY_FULL_NAMES[d]).join(', ');
+    }
+    default: return 'Once';
+  }
+}
 
 const FREQUENCIES: { key: Milestone['frequency']; label: string }[] = [
-  { key: 'once', label: 'Once' },
   { key: 'daily', label: 'Daily' },
+  { key: 'x_weekly', label: 'X days/week' },
   { key: 'weekly', label: 'Weekly' },
   { key: 'monthly', label: 'Monthly' },
+  { key: 'custom_days', label: 'Custom days' },
+  { key: 'once', label: 'Once' },
 ];
 
 function msMatchesFilter(ms: Milestone, filter: MsFilter): boolean {
   if (filter === 'all') return true;
-  if (filter === 'today') return ms.frequency === 'daily' || ms.frequency === 'once';
+  if (filter === 'today') return ms.frequency === 'daily' || ms.frequency === 'x_weekly' || ms.frequency === 'custom_days' || ms.frequency === 'once';
   if (filter === 'week') return ms.frequency === 'weekly' || ms.frequency === 'once';
   if (filter === 'month') return ms.frequency === 'monthly' || ms.frequency === 'once';
   return true;
@@ -56,22 +81,48 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [newMsTitle, setNewMsTitle] = useState('');
-  const [newMsFreq, setNewMsFreq] = useState<Milestone['frequency']>('once');
+  const [newMsFreq, setNewMsFreq] = useState<Milestone['frequency']>('daily');
+  const [newDaysPerWeek, setNewDaysPerWeek] = useState(3);
+  const [newCustomDays, setNewCustomDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
   const cat = GOAL_CATEGORIES.find((c) => c.key === goal.category);
 
   const { data: milestones = [], isLoading } = useGoalMilestones(goal.id);
+  const { data: stats = [] } = useGoalStats(goal.id);
   const togglePublicMutation = usePatchGoalPublic(goal.id);
   const toggleMsMutation = useToggleMilestone(goal.id);
   const addMsMutation = useCreateMilestone(goal.id);
+  const deleteMutation = useDeleteGoal();
+
+  const handleDeleteGoal = () => {
+    Alert.alert(
+      'Delete Goal',
+      `Delete "${goal.title}"? This will also remove all its milestones.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deleteMutation.mutate(goal.id, { onSuccess: onBack }),
+        },
+      ]
+    );
+  };
 
   const handleAddMilestone = () => {
     addMsMutation.mutate(
-      { title: newMsTitle, frequency: newMsFreq },
+      {
+        title: newMsTitle,
+        frequency: newMsFreq,
+        daysPerWeek: newMsFreq === 'x_weekly' ? newDaysPerWeek : undefined,
+        customDays: newMsFreq === 'custom_days' ? newCustomDays.sort((a, b) => a - b).join(',') : undefined,
+      },
       {
         onSuccess: () => {
           setNewMsTitle('');
-          setNewMsFreq('once');
+          setNewMsFreq('daily');
+          setNewDaysPerWeek(3);
+          setNewCustomDays([1, 2, 3, 4, 5]);
           setShowAddForm(false);
         },
       }
@@ -119,6 +170,29 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
           </View>
         </TouchableOpacity>
 
+        {/* Achievement banners */}
+        {(() => {
+          const bestStreak = stats.length > 0 ? Math.max(...stats.map(st => st.streak)) : 0;
+          const highCompletion = stats.find(st => st.completion_rate >= 0.8 && st.total_expected >= 3);
+          if (!bestStreak && !highCompletion) return null;
+          return (
+            <View style={s.achieveRow}>
+              {bestStreak >= 3 && (
+                <View style={[s.achievePill, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+                  <Text style={[s.achieveText, { color: colors.primary }]}>🔥 {bestStreak}-day streak</Text>
+                </View>
+              )}
+              {highCompletion && (
+                <View style={[s.achievePill, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}>
+                  <Text style={[s.achieveText, { color: colors.primary }]}>
+                    🎯 {Math.round(highCompletion.completion_rate * 100)}% completion
+                  </Text>
+                </View>
+              )}
+            </View>
+          );
+        })()}
+
         {/* Milestones section */}
         <View style={s.configSection}>
           <Text style={s.configSectionTitle}>Milestones</Text>
@@ -134,6 +208,7 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
 
           {milestones.map((ms) => {
             const done = ms.is_done_this_period;
+            const statsItem = stats.find(st => st.id === ms.id);
             return (
               <TouchableOpacity
                 key={ms.id}
@@ -151,7 +226,17 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
                     {ms.title}
                   </Text>
                   {ms.frequency !== 'once' && (
-                    <Text style={[s.msCardFreq, { color: colors.primary }]}>{FREQ_LABELS[ms.frequency]}</Text>
+                    <View style={s.msMetaRow}>
+                      <Text style={[s.msCardFreq, { color: colors.primary }]}>{freqLabel(ms)}</Text>
+                      {statsItem && statsItem.streak > 0 && (
+                        <Text style={[s.msStatChip, { color: colors.primary }]}>🔥 {statsItem.streak}</Text>
+                      )}
+                      {statsItem && statsItem.total_expected > 0 && (
+                        <Text style={[s.msStatChip, { color: statsItem.completion_rate >= 0.8 ? colors.primary : colors.textSecondary }]}>
+                          {Math.round(statsItem.completion_rate * 100)}%
+                        </Text>
+                      )}
+                    </View>
                   )}
                 </View>
               </TouchableOpacity>
@@ -163,15 +248,16 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
             <TouchableOpacity
               style={[s.addMsBtn, { borderColor: colors.primary }]}
               onPress={() => setShowAddForm(true)}
+              activeOpacity={0.7}
             >
-              <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.primary} />
               <Text style={[s.addMsBtnText, { color: colors.primary }]}>Add Milestone</Text>
             </TouchableOpacity>
           ) : (
             <View style={[s.addMsForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={s.addMsFormRow}>
                 <Text style={[s.addMsFormTitle, { color: colors.text }]}>New Milestone</Text>
-                <TouchableOpacity onPress={() => { setShowAddForm(false); setNewMsTitle(''); setNewMsFreq('once'); }}>
+                <TouchableOpacity onPress={() => { setShowAddForm(false); setNewMsTitle(''); setNewMsFreq('daily'); setNewDaysPerWeek(3); setNewCustomDays([1, 2, 3, 4, 5]); }}>
                   <MaterialCommunityIcons name="close" size={18} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -200,6 +286,56 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
                   </TouchableOpacity>
                 ))}
               </View>
+              {newMsFreq === 'x_weekly' && (
+                <View style={s.subPickerRow}>
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <TouchableOpacity
+                      key={n}
+                      style={[
+                        s.subPickerChip,
+                        { borderColor: colors.border, backgroundColor: colors.background },
+                        newDaysPerWeek === n && { backgroundColor: colors.primary, borderColor: colors.primary },
+                      ]}
+                      onPress={() => setNewDaysPerWeek(n)}
+                    >
+                      <Text style={[s.subPickerChipText, { color: newDaysPerWeek === n ? '#fff' : colors.textSecondary }]}>
+                        {n}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  <Text style={[s.subPickerLabel, { color: colors.textSecondary }]}>days/wk</Text>
+                </View>
+              )}
+              {newMsFreq === 'custom_days' && (
+                <View style={s.subPickerRow}>
+                  {([1, 2, 3, 4, 5, 6, 7] as number[]).map((d) => {
+                    const active = newCustomDays.includes(d);
+                    return (
+                      <TouchableOpacity
+                        key={d}
+                        style={[
+                          s.subPickerChip,
+                          { borderColor: colors.border, backgroundColor: colors.background },
+                          active && { backgroundColor: colors.primary, borderColor: colors.primary },
+                        ]}
+                        onPress={() => {
+                          setNewCustomDays((prev) => {
+                            if (prev.includes(d)) {
+                              if (prev.length === 1) return prev; // at least 1 day required
+                              return prev.filter((x) => x !== d);
+                            }
+                            return [...prev, d];
+                          });
+                        }}
+                      >
+                        <Text style={[s.subPickerChipText, { color: active ? '#fff' : colors.textSecondary }]}>
+                          {DAY_NAMES[d]}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
               <TouchableOpacity
                 style={[s.saveBtn, { backgroundColor: colors.primary }, (!newMsTitle || addMsMutation.isPending) && { opacity: 0.5 }]}
                 onPress={handleAddMilestone}
@@ -212,6 +348,16 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
             </View>
           )}
         </View>
+
+        {/* Delete goal */}
+        <TouchableOpacity
+          style={[s.deleteGoalBtn, { borderColor: colors.error ?? '#EF4444' }]}
+          onPress={handleDeleteGoal}
+          disabled={deleteMutation.isPending}
+        >
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.error ?? '#EF4444'} />
+          <Text style={[s.deleteGoalText, { color: colors.error ?? '#EF4444' }]}>Delete Goal</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -233,7 +379,7 @@ function getMsDueText(ms: Milestone): string | null {
     if (diff === 1) return 'Due tomorrow';
     return `Due ${fmt(due)}`;
   }
-  if (ms.frequency === 'daily') {
+  if (ms.frequency === 'daily' || ms.frequency === 'x_weekly' || ms.frequency === 'custom_days') {
     if (ms.is_done_this_period) {
       const next = new Date(today); next.setDate(next.getDate() + 1);
       return `Done · next due ${fmt(next)}`;
@@ -282,7 +428,7 @@ function MsRow({ ms, onToggle, colors }: { ms: Milestone; onToggle: () => void; 
           <Text style={[s.msRowGoal, { color: colors.textSecondary }]} numberOfLines={1}>{ms.goal_title}</Text>
           {ms.frequency !== 'once' && (
             <View style={[s.freqPill, { backgroundColor: colors.primaryLight }]}>
-              <Text style={[s.freqPillText, { color: colors.primary }]}>{FREQ_LABELS[ms.frequency]}</Text>
+              <Text style={[s.freqPillText, { color: colors.primary }]}>{freqLabel(ms)}</Text>
             </View>
           )}
         </View>
@@ -303,7 +449,12 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
   const [selectedGoals, setSelectedGoals] = useState<Set<string>>(new Set());
   const [openDropdown, setOpenDropdown] = useState<'date' | 'goal' | null>(null);
 
-  const { data: milestones = [], isLoading, isError: isMsError, refetch, isRefetching } = useMyMilestones();
+  const { data: milestones = [], isLoading, isError: isMsError, refetch } = useMyMilestones();
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try { await refetch(); } finally { setManualRefreshing(false); }
+  }, [refetch]);
   const toggleMsMutation = useToggleMyMilestone();
 
   const toggleGoal = (id: string) => {
@@ -412,7 +563,7 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={s.msViewContent}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
       >
         {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
 
@@ -455,18 +606,22 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
 // ─── GoalsView ────────────────────────────────────────────────────────────────
 
 function GoalsView({
-  goals, isLoading, refetch, isRefetching,
+  goals, isLoading, refetch,
   onSelectGoal,
 }: {
   goals: Goal[];
   isLoading: boolean;
   refetch: () => void;
-  isRefetching: boolean;
   onSelectGoal: (g: Goal) => void;
 }) {
   const colors = useThemeStore((s) => s.colors);
   const s = useMemo(() => makeStyles(colors), [colors]);
   const qc = useQueryClient();
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setManualRefreshing(true);
+    try { await refetch(); } finally { setManualRefreshing(false); }
+  }, [refetch]);
 
   const togglePublicMutation = useMutation({
     mutationFn: ({ id, isPublic }: { id: string; isPublic: boolean }) =>
@@ -477,7 +632,7 @@ function GoalsView({
   return (
     <ScrollView
       contentContainerStyle={s.goalsViewContent}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary} />}
+      refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
     >
       {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
 
@@ -547,13 +702,13 @@ function GoalsView({
 // ─── GoalDetailSheet ──────────────────────────────────────────────────────────
 
 function GoalDetailSheet({
-  goal, onClose, onRequestBuddy, onUseTemplate, requestPending, templatePending,
+  goal, onClose, onCoopJoin, onUseTemplate, coopPending, templatePending,
 }: {
   goal: PublicGoal;
   onClose: () => void;
-  onRequestBuddy: () => void;
+  onCoopJoin: () => void;
   onUseTemplate: () => void;
-  requestPending: boolean;
+  coopPending: boolean;
   templatePending: boolean;
 }) {
   const colors = useThemeStore((s) => s.colors);
@@ -562,13 +717,13 @@ function GoalDetailSheet({
 
   const { data: milestones = [], isLoading } = useGoalMilestones(goal.id);
 
-  const buddyLabel = () => {
-    if (goal.has_buddy) return 'Already has a buddy';
+  const coopLabel = () => {
+    if (goal.has_buddy) return 'Spot taken';
     if (goal.my_request_status === 'pending') return 'Request sent';
-    if (goal.my_request_status === 'accepted') return 'Buddied up';
-    return 'Request Buddy';
+    if (goal.my_request_status === 'accepted') return 'Joined!';
+    return 'Join Co-op';
   };
-  const buddyDisabled = goal.has_buddy || goal.my_request_status != null;
+  const coopDisabled = goal.has_buddy || goal.my_request_status != null;
 
   return (
     <SafeAreaView style={[s.discoverScreen, { backgroundColor: colors.background }]}>
@@ -593,20 +748,25 @@ function GoalDetailSheet({
           <View style={[s.discoverAvatar, { backgroundColor: colors.primaryLight }]}>
             <Text style={[s.discoverAvatarText, { color: colors.primary }]}>{goal.display_name[0]}</Text>
           </View>
-          <Text style={[s.discoverUserName, { color: colors.text, fontWeight: '600' }]}>{goal.display_name}</Text>
+          <Text style={[s.discoverUserName, { color: colors.text, fontWeight: FW.semibold }]}>{goal.display_name}</Text>
           <ActivityBadge level={goal.activity_level} small />
         </View>
 
         {/* Actions */}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity
-            style={[s.saveBtn, { flex: 1, backgroundColor: buddyDisabled ? colors.card : colors.primary, borderWidth: buddyDisabled ? 1 : 0, borderColor: colors.border }]}
-            onPress={onRequestBuddy}
-            disabled={buddyDisabled || requestPending}
+            style={[s.saveBtn, { flex: 1, backgroundColor: coopDisabled ? colors.card : colors.primary, borderWidth: coopDisabled ? 1 : 0, borderColor: colors.border }]}
+            onPress={onCoopJoin}
+            disabled={coopDisabled || coopPending}
           >
-            {requestPending
+            {coopPending
               ? <ActivityIndicator color="#fff" size="small" />
-              : <Text style={[s.saveBtnText, { color: buddyDisabled ? colors.textSecondary : '#fff' }]}>{buddyLabel()}</Text>}
+              : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  {!coopDisabled && <MaterialCommunityIcons name="account-multiple-outline" size={16} color="#fff" />}
+                  <Text style={[s.saveBtnText, { color: coopDisabled ? colors.textSecondary : '#fff' }]}>{coopLabel()}</Text>
+                </View>
+              )}
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.saveBtn, { flex: 1, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}
@@ -615,7 +775,7 @@ function GoalDetailSheet({
           >
             {templatePending
               ? <ActivityIndicator color={colors.primary} size="small" />
-              : <Text style={[s.saveBtnText, { color: colors.primary }]}>Use as Template</Text>}
+              : <Text style={[s.saveBtnText, { color: colors.primary }]}>Copy Only</Text>}
           </TouchableOpacity>
         </View>
 
@@ -631,7 +791,7 @@ function GoalDetailSheet({
             <View style={{ flex: 1 }}>
               <Text style={[s.msCardTitle, { color: colors.text }]}>{ms.title}</Text>
               {ms.frequency !== 'once' && (
-                <Text style={[s.msCardFreq, { color: colors.primary }]}>{FREQ_LABELS[ms.frequency]}</Text>
+                <Text style={[s.msCardFreq, { color: colors.primary }]}>{freqLabel(ms)}</Text>
               )}
             </View>
           </View>
@@ -648,12 +808,14 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
   const s = useMemo(() => makeStyles(colors), [colors]);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
-  const [buddyFilter, setBuddyFilter] = useState<'all' | 'open' | 'taken'>('all');
+  const [buddyFilter, setBuddyFilter] = useState<'all' | 'open' | 'taken'>('open');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedGoal, setSelectedGoal] = useState<PublicGoal | null>(null);
+  const [pendingJoins, setPendingJoins] = useState<Set<string>>(new Set());
+  const [openDropdown, setOpenDropdown] = useState<'category' | 'buddy' | null>(null);
 
   const { data: results = [], isLoading } = usePublicGoals(debouncedSearch, filterCat, buddyFilter);
-  const requestBuddyMutation = useRequestBuddy();
+  const coopJoinMutation = useCoopJoin();
   const useTemplateMutation = useGoalTemplate();
 
   const handleSearch = (text: string) => {
@@ -668,21 +830,25 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
     { key: 'taken', label: 'Taken' },
   ];
 
+  const catLabel = filterCat ? (GOAL_CATEGORIES.find((c) => c.key === filterCat)?.label ?? 'Category') : 'All Categories';
+  const buddyLabel = BUDDY_FILTERS.find((f) => f.key === buddyFilter)?.label ?? 'All';
+
   if (selectedGoal) {
     return (
       <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedGoal(null)}>
         <GoalDetailSheet
           goal={selectedGoal}
           onClose={() => setSelectedGoal(null)}
-          onRequestBuddy={() => {
-            requestBuddyMutation.mutate(selectedGoal.id, {
+          onCoopJoin={() => {
+            coopJoinMutation.mutate(selectedGoal.id, {
               onSuccess: () => {
+                setPendingJoins((prev) => new Set([...prev, selectedGoal.id]));
                 setSelectedGoal((prev) => prev ? { ...prev, my_request_status: 'pending' } : null);
               },
             });
           }}
           onUseTemplate={() => useTemplateMutation.mutate(selectedGoal.id)}
-          requestPending={requestBuddyMutation.isPending}
+          coopPending={coopJoinMutation.isPending}
           templatePending={useTemplateMutation.isPending}
         />
       </Modal>
@@ -695,7 +861,7 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
         <View style={s.discoverHeader}>
           <View>
             <Text style={[s.discoverTitle, { color: colors.text }]}>Discover Goals</Text>
-            <Text style={[s.discoverSub, { color: colors.textSecondary }]}>Find co-op partners</Text>
+            <Text style={[s.discoverSub, { color: colors.textSecondary }]}>Explore and team up on community goals!</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={[s.discoverClose, { backgroundColor: colors.card }]}>
             <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
@@ -719,42 +885,67 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
           )}
         </View>
 
-        {/* Category filter */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterContent} style={s.filterRow}>
+        {/* Filter dropdowns */}
+        {openDropdown !== null && (
+          <TouchableWithoutFeedback onPress={() => setOpenDropdown(null)}>
+            <View style={[StyleSheet.absoluteFillObject, { zIndex: 5 }]} />
+          </TouchableWithoutFeedback>
+        )}
+        <View style={[s.filterBar, { zIndex: 10 }]}>
           <TouchableOpacity
-            style={[s.chip, !filterCat && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-            onPress={() => setFilterCat('')}
+            style={[s.filterPill, { borderColor: filterCat ? colors.primary : colors.border, backgroundColor: filterCat ? colors.primaryLight : colors.card }]}
+            onPress={() => setOpenDropdown(openDropdown === 'category' ? null : 'category')}
+            activeOpacity={0.8}
           >
-            <Text style={[s.chipText, !filterCat && { color: '#fff' }]}>All</Text>
+            <MaterialCommunityIcons name="tag-outline" size={14} color={filterCat ? colors.primary : colors.textSecondary} />
+            <Text style={[s.filterPillText, { color: filterCat ? colors.primary : colors.textSecondary }]}>{catLabel}</Text>
+            <MaterialCommunityIcons name={openDropdown === 'category' ? 'chevron-up' : 'chevron-down'} size={14} color={filterCat ? colors.primary : colors.textSecondary} />
           </TouchableOpacity>
-          {GOAL_CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.key}
-              style={[s.chip, filterCat === cat.key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-              onPress={() => setFilterCat(filterCat === cat.key ? '' : cat.key)}
-            >
-              <MaterialCommunityIcons name={cat.icon as MCIName} size={13} color={filterCat === cat.key ? '#fff' : colors.textSecondary} />
-              <Text style={[s.chipText, filterCat === cat.key && { color: '#fff' }]}>{cat.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Buddy filter */}
-        <View style={[s.filterRow, { maxHeight: 40 }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterContent}>
-            {BUDDY_FILTERS.map((f) => (
-              <TouchableOpacity
-                key={f.key}
-                style={[s.chip, buddyFilter === f.key && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-                onPress={() => setBuddyFilter(f.key)}
-              >
-                {f.key === 'open' && <MaterialCommunityIcons name="account-plus-outline" size={13} color={buddyFilter === f.key ? '#fff' : colors.textSecondary} />}
-                {f.key === 'taken' && <MaterialCommunityIcons name="account-check-outline" size={13} color={buddyFilter === f.key ? '#fff' : colors.textSecondary} />}
-                <Text style={[s.chipText, buddyFilter === f.key && { color: '#fff' }]}>{f.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <TouchableOpacity
+            style={[s.filterPill, { borderColor: buddyFilter !== 'all' ? colors.primary : colors.border, backgroundColor: buddyFilter !== 'all' ? colors.primaryLight : colors.card }]}
+            onPress={() => setOpenDropdown(openDropdown === 'buddy' ? null : 'buddy')}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons name="account-filter-outline" size={14} color={buddyFilter !== 'all' ? colors.primary : colors.textSecondary} />
+            <Text style={[s.filterPillText, { color: buddyFilter !== 'all' ? colors.primary : colors.textSecondary }]}>{buddyLabel}</Text>
+            <MaterialCommunityIcons name={openDropdown === 'buddy' ? 'chevron-up' : 'chevron-down'} size={14} color={buddyFilter !== 'all' ? colors.primary : colors.textSecondary} />
+          </TouchableOpacity>
         </View>
+        {openDropdown === 'category' && (
+          <View style={[s.dropdownPanel, { zIndex: 10, backgroundColor: colors.card, borderColor: colors.border }]}>
+            {[{ key: '', label: 'All Categories', icon: null }, ...GOAL_CATEGORIES.map((c) => ({ key: c.key, label: c.label, icon: c.icon }))].map((opt) => {
+              const active = filterCat === opt.key;
+              return (
+                <TouchableOpacity
+                  key={opt.key}
+                  style={[s.dropdownItem, active && { backgroundColor: colors.primaryLight }]}
+                  onPress={() => { setFilterCat(opt.key); setOpenDropdown(null); }}
+                >
+                  {opt.icon && <MaterialCommunityIcons name={opt.icon as MCIName} size={15} color={active ? colors.primary : colors.textSecondary} />}
+                  <Text style={[s.dropdownItemText, { color: active ? colors.primary : colors.text }]}>{opt.label}</Text>
+                  {active && <MaterialCommunityIcons name="check" size={16} color={colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
+        {openDropdown === 'buddy' && (
+          <View style={[s.dropdownPanel, { zIndex: 10, backgroundColor: colors.card, borderColor: colors.border }]}>
+            {BUDDY_FILTERS.map((f) => {
+              const active = buddyFilter === f.key;
+              return (
+                <TouchableOpacity
+                  key={f.key}
+                  style={[s.dropdownItem, active && { backgroundColor: colors.primaryLight }]}
+                  onPress={() => { setBuddyFilter(f.key); setOpenDropdown(null); }}
+                >
+                  <Text style={[s.dropdownItemText, { color: active ? colors.primary : colors.text }]}>{f.label}</Text>
+                  {active && <MaterialCommunityIcons name="check" size={16} color={colors.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
           {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
@@ -766,22 +957,26 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
           )}
           {results.map((g: PublicGoal) => {
             const cat = GOAL_CATEGORIES.find((c) => c.key === g.category);
+            const effectiveGoal: PublicGoal = pendingJoins.has(g.id) ? { ...g, my_request_status: 'pending' } : g;
+            const isPaired = effectiveGoal.has_buddy || !!effectiveGoal.my_request_status;
             return (
-              <TouchableOpacity key={g.id} style={[s.discoverCard, { backgroundColor: colors.card }]} onPress={() => setSelectedGoal(g)} activeOpacity={0.8}>
+              <TouchableOpacity key={g.id} style={[s.discoverCard, { backgroundColor: isPaired ? colors.background : colors.card, borderWidth: 1, borderColor: isPaired ? colors.border : 'transparent' }]} onPress={() => setSelectedGoal(effectiveGoal)} activeOpacity={0.8}>
                 <View style={s.discoverCardTop}>
-                  <View style={[s.catBadge, { backgroundColor: colors.primaryLight }]}>
-                    <MaterialCommunityIcons name={cat?.icon as MCIName} size={12} color={colors.primary} />
-                    <Text style={[s.catLabel, { color: colors.primary }]}>{cat?.label}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    {g.milestone_count > 0 && (
-                      <Text style={[s.discoverMs, { color: colors.textSecondary }]}>{g.milestone_count} milestones</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={[s.catBadge, { backgroundColor: colors.primaryLight }]}>
+                      <MaterialCommunityIcons name={cat?.icon as MCIName} size={12} color={colors.primary} />
+                      <Text style={[s.catLabel, { color: colors.primary }]}>{cat?.label}</Text>
+                    </View>
+                    {isPaired && (
+                      <View style={[s.catBadge, { backgroundColor: colors.border }]}>
+                        <MaterialCommunityIcons name="account-check" size={12} color={colors.textSecondary} />
+                        <Text style={[s.catLabel, { color: colors.textSecondary }]}>Paired</Text>
+                      </View>
                     )}
-                    {g.has_buddy
-                      ? <MaterialCommunityIcons name="account-check" size={16} color={colors.textSecondary} />
-                      : <MaterialCommunityIcons name="account-plus-outline" size={16} color={colors.primary} />
-                    }
                   </View>
+                  {g.milestone_count > 0 && (
+                    <Text style={[s.discoverMs, { color: colors.textSecondary }]}>{g.milestone_count} milestones</Text>
+                  )}
                 </View>
                 <Text style={[s.goalCardTitle, { color: colors.text }]}>{g.title}</Text>
                 {g.description ? <Text style={[s.goalCardDesc, { color: colors.textSecondary }]} numberOfLines={2}>{g.description}</Text> : null}
@@ -806,7 +1001,14 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
 export default function GoalsScreen() {
   const colors = useThemeStore((s) => s.colors);
   const s = useMemo(() => makeStyles(colors), [colors]);
+  const qc = useQueryClient();
+  const { tab: tabParam } = useLocalSearchParams<{ tab?: string }>();
   const [activeTab, setActiveTab] = useState<'milestones' | 'goals'>('milestones');
+  const tabParamRef = useRef(tabParam);
+  tabParamRef.current = tabParam;
+  useFocusEffect(useCallback(() => {
+    if (tabParamRef.current === 'goals') setActiveTab('goals');
+  }, []));
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [showDiscover, setShowDiscover] = useState(false);
@@ -814,20 +1016,37 @@ export default function GoalsScreen() {
   const [newCategory, setNewCategory] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newIsPublic, setNewIsPublic] = useState(true);
+  const [newCoopOpen, setNewCoopOpen] = useState(false);
+  const [draftMilestones, setDraftMilestones] = useState<Array<{ id: string; title: string; frequency: Milestone['frequency']; daysPerWeek?: number; customDays?: string }>>([]);
+  const [msTitle, setMsTitle] = useState('');
+  const [msFreq, setMsFreq] = useState<Milestone['frequency']>('daily');
+  const [msDaysPerWeek, setMsDaysPerWeek] = useState(3);
+  const [msCustomDays, setMsCustomDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
-  const { data: goals = [], isLoading, isError, refetch, isRefetching } = useGoals();
+  const { data: goals = [], isLoading, isError, refetch } = useGoals();
   const addMutation = useCreateGoal();
 
-  const handleAddGoal = () => {
-    addMutation.mutate(
-      { title: newTitle, category: newCategory, description: newDescription, isPublic: newIsPublic },
-      {
-        onSuccess: () => {
-          setShowAdd(false);
-          setNewTitle(''); setNewCategory(''); setNewDescription(''); setNewIsPublic(true);
-        },
+  const handleCloseAdd = useCallback(() => {
+    setShowAdd(false);
+    setNewTitle(''); setNewCategory(''); setNewDescription(''); setNewIsPublic(true); setNewCoopOpen(false);
+    setDraftMilestones([]); setMsTitle(''); setMsFreq('once');
+  }, []);
+
+  const handleAddGoal = async () => {
+    if (!newTitle || !newCategory) return;
+    try {
+      const newGoal = await addMutation.mutateAsync({
+        title: newTitle, category: newCategory, description: newDescription,
+        isPublic: newCoopOpen ? true : newIsPublic, coopOpen: newCoopOpen,
+      });
+      if (draftMilestones.length > 0) {
+        await Promise.all(draftMilestones.map((ms) => createMilestoneApi(newGoal.id, ms.title, ms.frequency)));
+        qc.invalidateQueries({ queryKey: ['milestones', 'me'] });
       }
-    );
+      handleCloseAdd();
+    } catch {
+      // error already surfaced by useCreateGoal's onError alert
+    }
   };
 
   // Full-screen goal config
@@ -875,7 +1094,6 @@ export default function GoalsScreen() {
             goals={goals}
             isLoading={isLoading}
             refetch={refetch}
-            isRefetching={isRefetching}
             onSelectGoal={setSelectedGoal}
           />
       }
@@ -893,11 +1111,11 @@ export default function GoalsScreen() {
       {showDiscover && <DiscoverModal onClose={() => setShowDiscover(false)} myGoals={goals} />}
 
       {/* Add Goal Modal */}
-      <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowAdd(false)}>
+      <Modal visible={showAdd} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleCloseAdd}>
         <SafeAreaView style={[s.addGoalScreen, { backgroundColor: colors.background }]}>
           <View style={s.addGoalHeader}>
             <Text style={[s.addGoalTitle, { color: colors.text }]}>New Goal</Text>
-            <TouchableOpacity onPress={() => setShowAdd(false)} style={[s.discoverClose, { backgroundColor: colors.card }]}>
+            <TouchableOpacity onPress={handleCloseAdd} style={[s.discoverClose, { backgroundColor: colors.card }]}>
               <MaterialCommunityIcons name="close" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -942,31 +1160,116 @@ export default function GoalsScreen() {
             <TouchableOpacity
               style={[s.publicRow, { backgroundColor: colors.card, borderColor: colors.border }]}
               onPress={() => setNewIsPublic(!newIsPublic)}
+              disabled={newCoopOpen}
+              activeOpacity={newCoopOpen ? 1 : 0.8}
             >
               <MaterialCommunityIcons
-                name={newIsPublic ? 'eye-outline' : 'eye-off-outline'}
+                name={newIsPublic || newCoopOpen ? 'eye-outline' : 'eye-off-outline'}
                 size={20}
-                color={newIsPublic ? colors.primary : colors.textSecondary}
+                color={newIsPublic || newCoopOpen ? colors.primary : colors.textSecondary}
               />
               <View style={{ flex: 1 }}>
-                <Text style={[s.publicLabel, { color: colors.text }]}>{newIsPublic ? 'Public' : 'Private'}</Text>
+                <Text style={[s.publicLabel, { color: colors.text }]}>{newIsPublic || newCoopOpen ? 'Public' : 'Private'}</Text>
                 <Text style={[s.publicSub, { color: colors.textSecondary }]}>
-                  {newIsPublic ? 'Others can discover and buddy up' : 'Only visible to you'}
+                  {newIsPublic || newCoopOpen ? 'Others can discover and buddy up' : 'Only visible to you'}
                 </Text>
               </View>
-              <View style={[s.toggle, { backgroundColor: newIsPublic ? colors.primary : colors.border }]}>
-                <View style={[s.toggleThumb, newIsPublic && s.toggleThumbOn]} />
+              <View style={[s.toggle, { backgroundColor: newIsPublic || newCoopOpen ? colors.primary : colors.border }]}>
+                <View style={[s.toggleThumb, (newIsPublic || newCoopOpen) && s.toggleThumbOn]} />
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: colors.primary, marginTop: 8 }, (!newTitle || !newCategory) && { opacity: 0.5 }]}
+              style={[s.publicRow, { backgroundColor: colors.card, borderColor: newCoopOpen ? colors.primary : colors.border }]}
+              onPress={() => {
+                const next = !newCoopOpen;
+                setNewCoopOpen(next);
+                if (next) setNewIsPublic(true);
+              }}
+            >
+              <MaterialCommunityIcons
+                name="account-multiple-outline"
+                size={20}
+                color={newCoopOpen ? colors.primary : colors.textSecondary}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={[s.publicLabel, { color: colors.text }]}>Co-op Goal</Text>
+                <Text style={[s.publicSub, { color: colors.textSecondary }]}>
+                  {newCoopOpen ? 'You and a buddy work on this goal together' : 'Share ownership of this goal with a buddy'}
+                </Text>
+              </View>
+              <View style={[s.toggle, { backgroundColor: newCoopOpen ? colors.primary : colors.border }]}>
+                <View style={[s.toggleThumb, newCoopOpen && s.toggleThumbOn]} />
+              </View>
+            </TouchableOpacity>
+
+            {/* Milestones section */}
+            <Text style={[s.inputLabel, { color: colors.text, marginTop: 16 }]}>
+              Milestones{' '}
+              <Text style={{ color: colors.textSecondary, fontWeight: FW.regular }}>(optional)</Text>
+            </Text>
+
+            {draftMilestones.map((ms) => (
+              <View key={ms.id} style={[s.msDraftRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                <View style={[s.msDraftFreqBadge, { backgroundColor: colors.primaryLight }]}>
+                  <Text style={[s.msDraftFreqText, { color: colors.primary }]}>{FREQ_LABELS[ms.frequency]}</Text>
+                </View>
+                <Text style={[s.msDraftTitle, { color: colors.text }]} numberOfLines={1}>{ms.title}</Text>
+                <TouchableOpacity onPress={() => setDraftMilestones((prev) => prev.filter((m) => m.id !== ms.id))}>
+                  <MaterialCommunityIcons name="close-circle" size={18} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <View style={[s.msDraftAddForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <TextInput
+                style={[s.msDraftInput, { color: colors.text, borderColor: colors.border }]}
+                value={msTitle}
+                onChangeText={setMsTitle}
+                placeholder="e.g. Go for a 30-min run"
+                placeholderTextColor={colors.textSecondary}
+              />
+              <View style={s.msDraftFreqRow}>
+                {FREQUENCIES.map((f) => (
+                  <TouchableOpacity
+                    key={f.key}
+                    style={[
+                      s.msDraftFreqChip,
+                      { borderColor: colors.border },
+                      msFreq === f.key && { backgroundColor: colors.primary, borderColor: colors.primary },
+                    ]}
+                    onPress={() => setMsFreq(f.key)}
+                  >
+                    <Text style={[s.msDraftFreqChipText, { color: msFreq === f.key ? '#fff' : colors.textSecondary }]}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={[s.msDraftAddBtn, { backgroundColor: msTitle.trim() ? colors.primary : colors.border }]}
+                  onPress={() => {
+                    if (!msTitle.trim()) return;
+                    setDraftMilestones((prev) => [...prev, { id: Date.now().toString(), title: msTitle.trim(), frequency: msFreq }]);
+                    setMsTitle('');
+                    setMsFreq('once');
+                  }}
+                  disabled={!msTitle.trim()}
+                >
+                  <MaterialCommunityIcons name="plus" size={18} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[s.saveBtn, { backgroundColor: colors.primary, marginTop: 16 }, (!newTitle || !newCategory) && { opacity: 0.5 }]}
               onPress={handleAddGoal}
               disabled={!newTitle || !newCategory || addMutation.isPending}
             >
               {addMutation.isPending
                 ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={s.saveBtnText}>Save Goal</Text>}
+                : <Text style={s.saveBtnText}>
+                    Save Goal{draftMilestones.length > 0 ? ` + ${draftMilestones.length} milestone${draftMilestones.length > 1 ? 's' : ''}` : ''}
+                  </Text>}
             </TouchableOpacity>
           </ScrollView>
         </SafeAreaView>
@@ -979,11 +1282,11 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container:        { flex: 1, backgroundColor: colors.background },
 
   topBar:           { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  title:            { fontSize: 28, fontWeight: '700', color: colors.text, letterSpacing: -0.5 },
+  title:            { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text, letterSpacing: -0.5 },
 
   tabBar:           { flexDirection: 'row', paddingHorizontal: 20 },
   tabItem:          { flex: 1, alignItems: 'center', paddingVertical: 10 },
-  tabText:          { fontSize: 14, fontWeight: '600' },
+  tabText:          { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
   tabUnderline:     { position: 'absolute', bottom: 0, left: 16, right: 16, height: 2, borderRadius: 1 },
 
   filterRow:        { maxHeight: 44 },
@@ -994,47 +1297,47 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderRadius: 20, backgroundColor: colors.card,
     borderWidth: 1, borderColor: colors.border,
   },
-  chipText:         { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
+  chipText:         { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, fontWeight: FW.medium },
   filterBar:        { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   filterPill:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1 },
-  filterPillText:   { fontSize: 13, fontWeight: '600' },
+  filterPillText:   { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
   dropdownPanel:    { marginHorizontal: 16, borderRadius: 14, borderWidth: 1, marginBottom: 4, overflow: 'hidden' },
   dropdownItem:     { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
-  dropdownItemText: { fontSize: 14, fontWeight: '500' },
+  dropdownItemText: { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.medium },
 
   // Milestones view
   msViewContent:    { padding: 16, gap: 0, paddingBottom: 40 },
   msGroup:          { marginTop: 20, gap: 8 },
-  msGroupLabel:     { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+  msGroupLabel:     { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
   msRow:            { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14 },
-  msRowTitle:       { fontSize: 15, fontWeight: '500' },
+  msRowTitle:       { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.medium },
   msRowMeta:        { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  msRowGoal:        { fontSize: 12, flex: 1 },
+  msRowGoal:        { fontSize: FS.caption, lineHeight: LH.caption, flex: 1 },
   freqPill:         { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  freqPillText:     { fontSize: 10, fontWeight: '700' },
-  msDueText:        { fontSize: 11, marginTop: 3 },
+  freqPillText:     { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
+  msDueText:        { fontSize: FS.caption, lineHeight: LH.caption, marginTop: 3 },
 
   // Goals view
   goalsViewContent: { padding: 16, gap: 12 },
   goalCard:         { borderRadius: 16, padding: 16, gap: 6 },
   goalCardTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   goalCardRight:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  goalCardTitle:    { fontSize: 16, fontWeight: '700' },
-  goalCardDesc:     { fontSize: 13 },
+  goalCardTitle:    { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold },
+  goalCardDesc:     { fontSize: FS.secondary, lineHeight: LH.secondary },
   buddyRow:         { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   buddyStatusPill:  { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  buddyStatusText:  { fontSize: 12, fontWeight: '600' },
+  buddyStatusText:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
 
   catBadge:         { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  catLabel:         { fontSize: 12, fontWeight: '600' },
+  catLabel:         { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
 
   empty:            { alignItems: 'center', paddingTop: 60, gap: 10 },
-  emptyTitle:       { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptyText:        { fontSize: 14, color: colors.textSecondary },
+  emptyTitle:       { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text },
+  emptyText:        { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary },
   errorState:       { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
-  errorStateText:   { fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
+  errorStateText:   { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, textAlign: 'center' },
   retryBtn:         { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
-  retryBtnText:     { color: '#fff', fontWeight: '700', fontSize: 14 },
+  retryBtnText:     { color: '#fff', fontWeight: FW.bold, fontSize: FS.secondary, lineHeight: LH.secondary },
 
   fabRow: {
     position: 'absolute', bottom: 24, right: 24,
@@ -1052,59 +1355,78 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   configBack:       { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center' },
   configTitleWrap:  { flex: 1 },
   configContent:    { padding: 20, gap: 16, paddingBottom: 60 },
-  configTitle:      { fontSize: 22, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
-  configDesc:       { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  configTitle:      { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text, letterSpacing: -0.3 },
+  configDesc:       { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary },
   configSection:    { gap: 10 },
-  configSectionTitle: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+  configSectionTitle: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
   configEmpty:      { borderRadius: 14, padding: 24, alignItems: 'center', gap: 8 },
-  configEmptyText:  { fontSize: 14 },
+  configEmptyText:  { fontSize: FS.secondary, lineHeight: LH.secondary },
   msCard:           { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, borderWidth: 1 },
-  msCardTitle:      { fontSize: 15, fontWeight: '500' },
-  msCardFreq:       { fontSize: 11, fontWeight: '700', textTransform: 'capitalize', marginTop: 2 },
+  msCardTitle:      { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.medium },
+  msCardFreq:       { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, textTransform: 'capitalize', marginTop: 2 },
+  msMetaRow:        { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+  msStatChip:       { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
+  achieveRow:       { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  achievePill:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, alignSelf: 'flex-start' },
+  achieveText:      { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
   addMsBtn:         { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1.5, borderStyle: 'dashed', padding: 14, justifyContent: 'center' },
-  addMsBtnText:     { fontSize: 14, fontWeight: '600' },
+  addMsBtnText:     { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
+  deleteGoalBtn:    { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 14, borderWidth: 1.5, padding: 14, justifyContent: 'center', marginTop: 8, marginBottom: 32 },
+  deleteGoalText:   { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
   addMsForm:        { borderRadius: 14, padding: 14, gap: 12, borderWidth: 1 },
   addMsFormRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  addMsFormTitle:   { fontSize: 14, fontWeight: '700' },
-  addMsInput:       { borderWidth: 1, borderRadius: 10, padding: 11, fontSize: 15 },
+  addMsFormTitle:   { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.bold },
+  addMsInput:       { borderWidth: 1, borderRadius: 10, padding: 11, fontSize: FS.body, lineHeight: LH.body },
   freqRow:          { flexDirection: 'row', gap: 8 },
   freqChip:         { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
-  freqChipText:     { fontSize: 12, fontWeight: '600' },
+  freqChipText:     { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
 
   publicRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, borderWidth: 1 },
-  publicLabel:      { fontSize: 15, fontWeight: '600' },
-  publicSub:        { fontSize: 12, marginTop: 1 },
+  publicLabel:      { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.semibold },
+  publicSub:        { fontSize: FS.caption, lineHeight: LH.caption, marginTop: 1 },
   toggle:           { width: 44, height: 26, borderRadius: 13, justifyContent: 'center', paddingHorizontal: 3 },
   toggleThumb:      { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff' },
   toggleThumbOn:    { alignSelf: 'flex-end' },
 
   saveBtn:          { padding: 14, borderRadius: 12, alignItems: 'center' },
-  saveBtnText:      { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText:      { color: '#fff', fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
+
+  // Draft milestones in "New Goal" modal
+  msDraftRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, padding: 10, borderWidth: 1, marginBottom: 2 },
+  msDraftFreqBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  msDraftFreqText:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
+  msDraftTitle:     { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.medium },
+  msDraftAddForm:   { borderRadius: 12, padding: 10, gap: 8, borderWidth: 1 },
+  msDraftInput:     { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: FS.secondary, lineHeight: LH.secondary },
+  msDraftFreqRow:   { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  msDraftFreqChip:  { flex: 1, paddingVertical: 6, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
+  msDraftFreqChipText: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
+  msDraftAddBtn:    { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
 
   // Add goal screen
   addGoalScreen:    { flex: 1 },
   addGoalHeader:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
-  addGoalTitle:     { fontSize: 22, fontWeight: '700' },
+  addGoalTitle:     { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold },
   addGoalContent:   { padding: 20, gap: 4, paddingBottom: 40 },
-  inputLabel:       { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 8 },
-  input:            { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: 15, marginBottom: 4 },
+  inputLabel:       { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold, marginBottom: 6, marginTop: 8 },
+  input:            { borderWidth: 1, borderRadius: 12, padding: 12, fontSize: FS.body, lineHeight: LH.body, marginBottom: 4 },
   catGrid:          { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   catChip:          { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
-  catChipText:      { fontSize: 13 },
+  catChipText:      { fontSize: FS.secondary, lineHeight: LH.secondary },
 
   // Discover modal
   discoverScreen:   { flex: 1 },
   discoverHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   discoverClose:    { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  discoverTitle:    { fontSize: 22, fontWeight: '700' },
-  discoverSub:      { fontSize: 13, marginTop: 2 },
+  discoverTitle:    { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold },
+  discoverSub:      { fontSize: FS.secondary, lineHeight: LH.secondary, marginTop: 2 },
   searchBar:        { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginHorizontal: 16, marginTop: 12, marginBottom: 4 },
-  searchInput:      { flex: 1, fontSize: 15 },
+  searchInput:      { flex: 1, fontSize: FS.body, lineHeight: LH.body },
   discoverCard:     { borderRadius: 14, padding: 14, gap: 6 },
   discoverCardTop:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  discoverMs:       { fontSize: 11, fontWeight: '600' },
+  discoverMs:       { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
   discoverUser:     { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   discoverAvatar:   { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  discoverAvatarText: { fontSize: 11, fontWeight: '700' },
-  discoverUserName: { fontSize: 12, fontWeight: '500', flex: 1 },
+  discoverAvatarText: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
+  discoverUserName: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.medium, flex: 1 },
 });

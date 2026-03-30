@@ -1,3 +1,12 @@
+export type DeadlineWarning = {
+  milestone_id: string;
+  title: string;
+  frequency: string;
+  deadline: string;
+  percent_elapsed: number;
+  hours_remaining: number;
+};
+
 export type Connection = {
   id: string;
   status: string;
@@ -12,6 +21,7 @@ export type Connection = {
   last_checkin_at: string | null;
   connection_type: string;
   overdue_count: number;
+  late_today_count: number;
   total_checkins: number;
   milestones_completed: number;
   response_rate: number;
@@ -19,6 +29,7 @@ export type Connection = {
   is_my_goal: boolean;
   is_last_message_mine: boolean | null;
   last_message_at: string | null;
+  deadline_warnings: DeadlineWarning[];
 };
 
 export type BuddyGroup = {

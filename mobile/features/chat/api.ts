@@ -18,3 +18,24 @@ export const sendCheckIn = (
     method: 'POST',
     body: JSON.stringify({ connectionId, message, mood }),
   });
+
+export type MilestoneStat = {
+  id: string;
+  title: string;
+  frequency: string;
+  streak: number;
+  total_completed: number;
+  total_expected: number;
+  completion_rate: number;
+  skip_rate: number;
+};
+
+export type GoalStats = {
+  buddy_name: string;
+  milestone_stats: MilestoneStat[];
+  overall_completion_rate: number;
+  overall_skip_rate: number;
+};
+
+export const fetchGoalStats = (connectionId: string): Promise<GoalStats> =>
+  apiFetch(`/buddies/${connectionId}/goal-stats`);

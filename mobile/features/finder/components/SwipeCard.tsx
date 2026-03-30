@@ -3,6 +3,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityBadge } from '../../../shared/components/ActivityBadge';
 import { GOAL_CATEGORIES } from '../../../lib/constants';
 import { Candidate } from '../types';
+import { FS, FW, LH } from '../../../theme/typography';
 
 export function SwipeCard({ card, colors }: { card: Candidate; colors: any }) {
   const cat = GOAL_CATEGORIES.find((c) => c.key === card.category);
@@ -61,17 +62,17 @@ export function SwipeCard({ card, colors }: { card: Candidate; colors: any }) {
 const cardStyles = StyleSheet.create({
   root:          { alignItems: 'center', paddingVertical: 8 },
   avatar:        { width: 88, height: 88, borderRadius: 44, justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
-  avatarText:    { fontSize: 36, fontWeight: '800', letterSpacing: -1 },
-  name:          { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, marginBottom: 2 },
-  username:      { fontSize: 13, fontWeight: '500', marginBottom: 10 },
-  bio:           { fontSize: 13, textAlign: 'center', lineHeight: 19, marginBottom: 12, paddingHorizontal: 8 },
+  avatarText:    { fontSize: FS.display, lineHeight: LH.display, fontWeight: FW.semibold, letterSpacing: -1 },
+  name:          { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.semibold, letterSpacing: -0.5, marginBottom: 2 },
+  username:      { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.medium, marginBottom: 10 },
+  bio:           { fontSize: FS.secondary, lineHeight: LH.secondary, textAlign: 'center', marginBottom: 12, paddingHorizontal: 8 },
   goalPill:      { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginBottom: 12 },
-  goalPillText:  { fontSize: 13, fontWeight: '700' },
+  goalPillText:  { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.bold },
   divider:       { width: '100%', height: 1, marginVertical: 14 },
   stats:         { flexDirection: 'row', alignItems: 'center', gap: 0, width: '100%', justifyContent: 'space-around' },
   stat:          { alignItems: 'center', flex: 1 },
-  statVal:       { fontSize: 20, fontWeight: '800', letterSpacing: -0.5 },
-  statLbl:       { fontSize: 10, fontWeight: '500', marginTop: 2 },
+  statVal:       { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.semibold, letterSpacing: -0.5 },
+  statLbl:       { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.medium, marginTop: 2 },
   statDivider:   { width: 1, height: 30 },
   badge:         { marginTop: 14 },
 });

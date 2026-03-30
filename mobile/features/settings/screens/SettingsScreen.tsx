@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator,
 } from 'react-native';
+import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -163,30 +164,30 @@ export default function SettingsScreen() {
 
 const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   container:        { flex: 1, backgroundColor: colors.background },
-  title:            { fontSize: 28, fontWeight: '700', color: colors.text, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
+  title:            { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 },
   content:          { padding: 16, gap: 16, paddingBottom: 40 },
 
   avatarSection:    { alignItems: 'center', paddingVertical: 8 },
   avatar:           { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
-  avatarText:       { fontSize: 32, fontWeight: '700', color: colors.primary },
-  username:         { fontSize: 15, color: colors.textSecondary, marginTop: 8, fontWeight: '600' },
+  avatarText:       { fontSize: FS.display, lineHeight: LH.display, fontWeight: FW.bold, color: colors.primary },
+  username:         { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, marginTop: 8, fontWeight: FW.semibold },
 
   card:             { backgroundColor: colors.card, borderRadius: 16, padding: 16, gap: 12 },
-  cardTitle:        { fontSize: 12, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
-  label:            { fontSize: 13, fontWeight: '600', color: colors.text },
-  input:            { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: 15, color: colors.text },
-  emailText:        { fontSize: 15, color: colors.textSecondary },
+  cardTitle:        { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8 },
+  label:            { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold, color: colors.text },
+  input:            { backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 12, fontSize: FS.body, lineHeight: LH.body, color: colors.text },
+  emailText:        { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary },
 
   themeGroup:       { gap: 8 },
-  themeGroupLabel:  { fontSize: 11, fontWeight: '700', color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 },
+  themeGroupLabel:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.6 },
   themeRow:         { flexDirection: 'row', gap: 12, flexWrap: 'wrap' },
   themeOption:      { alignItems: 'center', gap: 5, width: 56 },
   themeSwatchWrap:  { borderRadius: 16, padding: 2.5, borderWidth: 2.5, borderColor: 'transparent' },
   themeSwatch:      { width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   themeSwatchInner: { width: 18, height: 18, borderRadius: 9 },
-  themeLabel:       { fontSize: 10, fontWeight: '600', color: colors.textSecondary, textAlign: 'center' },
+  themeLabel:       { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold, color: colors.textSecondary, textAlign: 'center' },
 
-  swatchLabel:      { fontSize: 13, fontWeight: '600', color: colors.text },
+  swatchLabel:      { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold, color: colors.text },
   swatchGrid:       { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch:           { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   swatchActive:     { borderWidth: 3, borderColor: colors.text },
@@ -195,7 +196,7 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   toggleThumbOn:    { alignSelf: 'flex-end' },
 
   saveBtn:          { backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
-  saveBtnText:      { color: '#fff', fontWeight: '700', fontSize: 16 },
+  saveBtnText:      { color: '#fff', fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
   logoutBtn:        { backgroundColor: colors.accentLight, borderRadius: 12, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
-  logoutText:       { color: colors.accent, fontWeight: '700', fontSize: 16 },
+  logoutText:       { color: colors.accent, fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
 });

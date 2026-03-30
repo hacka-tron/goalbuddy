@@ -10,11 +10,18 @@ export function useMyGoals() {
 }
 
 export function useDeck(selectedGoalId: string | null) {
-  return useQuery<Candidate[]>({
+  const result = useQuery({
     queryKey: ['deck', selectedGoalId],
     queryFn: () => fetchDeck(selectedGoalId!),
     enabled: !!selectedGoalId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
+  return {
+    ...result,
+    data: result.data?.candidates ?? [],
+    isLocked: result.data?.locked ?? false,
+  };
 }
 
 export function useSwipe(
@@ -34,6 +41,7 @@ export function useSwipe(
       onAdvance();
       resetPosition();
       qc.invalidateQueries({ queryKey: ['buddies'] });
+      qc.invalidateQueries({ queryKey: ['deck', selectedGoalId] });
     },
   });
 }

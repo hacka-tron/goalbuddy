@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { AppState } from 'react-native';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchConnection, fetchCheckIns, sendCheckIn } from './api';
+import { fetchConnection, fetchCheckIns, sendCheckIn, fetchGoalStats, GoalStats } from './api';
 import { CheckIn, CheckInsPage, Connection } from './types';
 import { useOfflineQueueStore } from '../../store/offlineQueueStore';
 
@@ -13,6 +13,15 @@ export function useConnection(connectionId: string) {
   });
 }
 
+export function useGoalStats(connectionId: string, enabled: boolean) {
+  return useQuery<GoalStats>({
+    queryKey: ['goalStats', connectionId],
+    queryFn: () => fetchGoalStats(connectionId),
+    enabled: !!connectionId && enabled,
+    staleTime: 30000,
+  });
+}
+
 export function useCheckIns(connectionId: string) {
   return useInfiniteQuery<CheckInsPage>({
     queryKey: ['checkins', connectionId],
@@ -21,6 +30,8 @@ export function useCheckIns(connectionId: string) {
     getNextPageParam: (lastPage: CheckInsPage) =>
       lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
     initialPageParam: undefined,
+    staleTime: 0,
+    refetchOnMount: 'always',
     refetchInterval: 5000,
     enabled: !!connectionId,
   });

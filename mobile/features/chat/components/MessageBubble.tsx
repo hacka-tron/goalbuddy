@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CheckIn } from '../types';
+import { FS, FW, LH } from '../../../theme/typography';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -58,18 +59,18 @@ const makeStyles = (colors: any) => StyleSheet.create({
   bubble:        { maxWidth: '75%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, gap: 3 },
   bubbleMe:      { backgroundColor: colors.primary, borderTopRightRadius: 4 },
   bubbleThem:    { backgroundColor: colors.card, borderTopLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
-  bubbleSender:  { fontSize: 11, fontWeight: '700', color: colors.primary, marginBottom: 1 },
-  bubbleText:    { fontSize: 15, lineHeight: 21 },
+  bubbleSender:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, color: colors.primary, marginBottom: 1 },
+  bubbleText:    { fontSize: FS.body, lineHeight: LH.body },
   bubbleTextMe:  { color: '#fff' },
   bubbleTextThem:{ color: colors.text },
   bubbleFooter:  { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  bubbleTime:    { fontSize: 11 },
+  bubbleTime:    { fontSize: FS.caption, lineHeight: LH.caption },
   bubbleTimeMe:  { color: 'rgba(255,255,255,0.65)' },
   bubbleTimeThem:{ color: colors.textSecondary },
 
   milestoneTag:     { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  milestoneTagText: { fontSize: 11, color: colors.primary, fontWeight: '600' },
+  milestoneTagText: { fontSize: FS.caption, lineHeight: LH.caption, color: colors.primary, fontWeight: FW.semibold },
 
   retryInline:     { paddingHorizontal: 4 },
-  retryInlineText: { fontSize: 11, color: '#FF6B6B', fontWeight: '700' },
+  retryInlineText: { fontSize: FS.caption, lineHeight: LH.caption, color: '#FF6B6B', fontWeight: FW.bold },
 });

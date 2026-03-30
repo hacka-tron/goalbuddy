@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, PanResponder, Animated, Dimensions,
 } from 'react-native';
+import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '../../../store/themeStore';
@@ -30,7 +31,7 @@ export default function FinderScreen() {
   const nextScale = position.x.interpolate({ inputRange: [-SW / 2, 0, SW / 2], outputRange: [1, 0.95, 1], extrapolate: 'clamp' });
 
   const { data: myGoals = [] } = useMyGoals();
-  const { data: deck = [], isLoading, isError: isDeckError, refetch: refetchDeck } = useDeck(selectedGoal?.id ?? null);
+  const { data: deck = [], isLoading, isError: isDeckError, isLocked, refetch: refetchDeck } = useDeck(selectedGoal?.id ?? null);
 
   const swipeMutation = useSwipe(
     deck,
@@ -49,7 +50,7 @@ export default function FinderScreen() {
       duration: 240,
       useNativeDriver: false,
     }).start(() => {
-      swipeMutation.mutate({ swipedId: card.id, action, mode: 'specific', goalId: selectedGoal?.id });
+      swipeMutation.mutate({ swipedId: card.id, action, mode: 'specific', goalId: selectedGoal?.id, cardGoalId: card.goal_id });
     });
   };
 
@@ -68,7 +69,7 @@ export default function FinderScreen() {
 
   // ── Goal picker ─────────────────────────────────────────────
   if (!selectedGoal) {
-    const publicGoals = myGoals.filter((g: any) => g.status === 'active');
+    const publicGoals = myGoals.filter((g: any) => g.status === 'active' && !(g.connection_id && g.connection_status === 'accepted'));
     return (
       <SafeAreaView style={s.container}>
         <Text style={s.pickerTitle}>Pick a Goal</Text>
@@ -77,37 +78,21 @@ export default function FinderScreen() {
         <ScrollView contentContainerStyle={s.goalList} showsVerticalScrollIndicator={false}>
           {publicGoals.map((g: any) => {
             const cat = GOAL_CATEGORIES.find((c) => c.key === g.category);
-            const hasBuddy = !!g.connection_id && g.connection_status === 'accepted';
             return (
               <TouchableOpacity
                 key={g.id}
-                style={[s.goalCard, hasBuddy && s.goalCardLocked]}
-                onPress={() => !hasBuddy && setSelectedGoal(g)}
-                disabled={hasBuddy}
+                style={s.goalCard}
+                onPress={() => setSelectedGoal(g)}
                 activeOpacity={0.8}
               >
-                <View style={[s.goalCardIconBox, { backgroundColor: hasBuddy ? colors.border : colors.primaryLight }]}>
-                  {cat && (
-                    <MaterialCommunityIcons
-                      name={cat.icon as any}
-                      size={28}
-                      color={hasBuddy ? colors.textSecondary : colors.primary}
-                    />
-                  )}
+                <View style={[s.goalCardIconBox, { backgroundColor: colors.primaryLight }]}>
+                  {cat && <MaterialCommunityIcons name={cat.icon as any} size={28} color={colors.primary} />}
                 </View>
                 <View style={s.goalCardBody}>
-                  <Text style={[s.goalCardTitle, hasBuddy && { color: colors.textSecondary }]}>{g.title}</Text>
+                  <Text style={s.goalCardTitle}>{g.title}</Text>
                   <Text style={s.goalCardCat}>{cat?.label}</Text>
-                  {hasBuddy && (
-                    <View style={s.buddiedPill}>
-                      <MaterialCommunityIcons name="check-circle" size={11} color={colors.primary} />
-                      <Text style={s.buddiedText}>Has a buddy</Text>
-                    </View>
-                  )}
                 </View>
-                {!hasBuddy && (
-                  <MaterialCommunityIcons name="chevron-right" size={22} color={colors.primary} />
-                )}
+                <MaterialCommunityIcons name="chevron-right" size={22} color={colors.primary} />
               </TouchableOpacity>
             );
           })}
@@ -157,15 +142,27 @@ export default function FinderScreen() {
         </View>
       )}
 
-      {!isLoading && !isDeckError && !currentCard && (
+      {!isLoading && !isDeckError && isLocked && (
         <View style={s.empty}>
-          <MaterialCommunityIcons name="check-all" size={56} color={colors.border} />
-          <Text style={s.emptyTitle}>You're all caught up</Text>
-          <Text style={s.emptyText}>Check back later for more potential buddies</Text>
+          <View style={[s.emptyIconWrap, { borderColor: colors.primary }]}>
+            <MaterialCommunityIcons name="handshake" size={32} color={colors.primary} />
+          </View>
+          <Text style={s.emptyTitle}>You're matched!</Text>
+          <Text style={s.emptyText}>You already have a buddy for this goal.{'\n'}Head to Buddies to chat.</Text>
         </View>
       )}
 
-      {!isLoading && !isDeckError && currentCard && (
+      {!isLoading && !isDeckError && !isLocked && !currentCard && (
+        <View style={s.empty}>
+          <View style={s.emptyIconWrap}>
+            <MaterialCommunityIcons name="account-search-outline" size={32} color={colors.textSecondary} />
+          </View>
+          <Text style={s.emptyTitle}>No buddies found</Text>
+          <Text style={s.emptyText}>Nobody else is working on this goal yet.{'\n'}Check back later or invite a friend.</Text>
+        </View>
+      )}
+
+      {!isLoading && !isDeckError && !isLocked && currentCard && (
         <View style={s.deckContainer}>
           {/* Card behind */}
           {nextCard && (
@@ -221,25 +218,22 @@ const makeStyles = (colors: any) => StyleSheet.create({
   container:           { flex: 1, backgroundColor: colors.background, padding: 20 },
 
   // Goal picker
-  pickerTitle:         { fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 4, letterSpacing: -0.3 },
-  pickerSub:           { fontSize: 14, color: colors.textSecondary, marginBottom: 24 },
+  pickerTitle:         { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.semibold, color: colors.text, marginBottom: 4, letterSpacing: -0.3 },
+  pickerSub:           { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, marginBottom: 24 },
   goalList:            { gap: 12, paddingBottom: 20 },
   goalCard:            { backgroundColor: colors.card, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: colors.border },
-  goalCardLocked:      { opacity: 0.55 },
   goalCardIconBox:     { width: 54, height: 54, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   goalCardBody:        { flex: 1, gap: 3 },
-  goalCardTitle:       { fontSize: 15, fontWeight: '700', color: colors.text, lineHeight: 20 },
-  goalCardCat:         { fontSize: 12, color: colors.textSecondary, fontWeight: '500' },
-  buddiedPill:         { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
-  buddiedText:         { fontSize: 11, color: colors.primary, fontWeight: '600' },
+  goalCardTitle:       { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold, color: colors.text },
+  goalCardCat:         { fontSize: FS.caption, lineHeight: LH.caption, color: colors.textSecondary, fontWeight: FW.medium },
   emptyPicker:         { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyPickerText:     { fontSize: 15, color: colors.textSecondary },
+  emptyPickerText:     { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary },
 
   // Deck
   deckHeader:          { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 8 },
   deckBackBtn:         { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.card, justifyContent: 'center', alignItems: 'center' },
   deckTitleWrap:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  deckTitle:           { fontSize: 15, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  deckTitle:           { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold, color: colors.text, flexShrink: 1 },
   deckContainer:       { flex: 1, alignItems: 'center', paddingHorizontal: 16 },
   card:                {
     position: 'absolute',
@@ -260,23 +254,24 @@ const makeStyles = (colors: any) => StyleSheet.create({
   stampOverlay:        { position: 'absolute', top: 28, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8, borderWidth: 3, zIndex: 10, transform: [{ rotate: '-12deg' }] },
   stampLike:           { left: 20, borderColor: 'transparent', backgroundColor: 'transparent' },
   stampPass:           { right: 20, borderColor: 'transparent', backgroundColor: 'transparent' },
-  stampText:           { fontSize: 22, fontWeight: '900', letterSpacing: 2 },
+  stampText:           { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.semibold, letterSpacing: 2 },
   actions:             { position: 'absolute', bottom: 24, flexDirection: 'row', gap: 32 },
   actionBtn:           { width: 68, height: 68, borderRadius: 34, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
   passBtn:             { backgroundColor: colors.accentLight, borderWidth: 1.5, borderColor: colors.accent },
   likeBtn:             { backgroundColor: colors.primaryLight, borderWidth: 1.5, borderColor: colors.primary },
-  empty:               { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  emptyTitle:          { fontSize: 20, fontWeight: '800', color: colors.text },
-  emptyText:           { fontSize: 14, color: colors.textSecondary },
+  empty:               { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 40 },
+  emptyIconWrap:       { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  emptyTitle:          { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text },
+  emptyText:           { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, textAlign: 'center' },
   retryBtn:            { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10, marginTop: 4 },
-  retryText:           { color: '#fff', fontWeight: '700', fontSize: 14 },
+  retryText:           { color: '#fff', fontWeight: FW.bold, fontSize: FS.secondary, lineHeight: LH.secondary },
 
   // Match modal
-  matchModal:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 32 },
-  matchCard:           { backgroundColor: colors.card, borderRadius: 28, padding: 32, alignItems: 'center', width: '100%' },
-  matchEmoji:          { fontSize: 56, marginBottom: 12 },
-  matchTitle:          { fontSize: 28, fontWeight: '900', color: colors.text, marginBottom: 8, letterSpacing: -0.5 },
-  matchSub:            { fontSize: 15, color: colors.textSecondary, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
-  matchBtn:            { backgroundColor: colors.primary, paddingHorizontal: 36, paddingVertical: 15, borderRadius: 16, width: '100%', alignItems: 'center' },
-  matchBtnText:        { color: '#fff', fontWeight: '800', fontSize: 16 },
+  matchModal:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  matchCard:           { backgroundColor: colors.card, borderRadius: 24, padding: 28, alignItems: 'center', width: '100%', borderWidth: 1, borderColor: colors.border },
+  matchEmoji:          { fontSize: FS.display, lineHeight: LH.display, marginBottom: 8 },
+  matchTitle:          { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.semibold, color: colors.text, marginBottom: 6, letterSpacing: -0.3 },
+  matchSub:            { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, textAlign: 'center', marginBottom: 24 },
+  matchBtn:            { backgroundColor: colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 14, width: '100%', alignItems: 'center' },
+  matchBtnText:        { color: '#fff', fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
 });
