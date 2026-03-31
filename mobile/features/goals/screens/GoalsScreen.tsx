@@ -37,6 +37,7 @@ import { createMilestone as createMilestoneApi } from '../api';
 import { GoalCard } from '../components/GoalCard';
 import { CardSkeleton } from '../../../components/ui/Skeleton';
 import { ScreenState } from '../../../components/ui/ScreenState';
+import { canGoalBeMadePublic, PUBLIC_GOAL_REQUIRES_MILESTONE_MESSAGE } from '../validation';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -1071,8 +1072,8 @@ export default function GoalsScreen() {
 
   const handleAddGoal = async () => {
     if (!newTitle || !newCategory) return;
-    if ((newIsPublic || newCoopOpen) && draftMilestones.length === 0) {
-      Alert.alert('Add a Milestone', 'Public goals need at least one milestone so your buddy knows what to track.');
+    if ((newIsPublic || newCoopOpen) && !canGoalBeMadePublic(draftMilestones)) {
+      Alert.alert('Add a Milestone', PUBLIC_GOAL_REQUIRES_MILESTONE_MESSAGE);
       return;
     }
     try {
