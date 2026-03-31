@@ -40,3 +40,111 @@
 ### 4. API Resilience
 - **JSON Consistency**: All error responses must follow a standard structure: `{ error: string, code: string, retryable: boolean }`.
 - **Graceful Shutdown**: Implement listeners for `SIGTERM` and `SIGINT` to close database connections before the process exits.
+
+---
+
+## 🧪 Test Architecture
+
+### Mobile — Unit & Component Tests
+
+**Stack**: `jest-expo` preset · `@testing-library/react-native` · mocked API layer
+
+**Run**: `cd mobile && npm test`
+
+**Config**: `mobile/jest.config.js` · setup file: `mobile/jest.setup.ts`
+
+#### What the setup file mocks (applied globally to every test)
+| Mock | Why |
+|---|---|
+| `./store/themeStore` | Provides stable `sage` colors — prevents Zustand store from reading AsyncStorage |
+| `./lib/api` (`apiFetch`) | Starts as a failing stub — each test explicitly controls the response |
+| `expo-haptics` | Side-effect-free in CI |
+| `expo-router` | Provides `router`, `useRouter`, `useLocalSearchParams`, etc. |
+| `expo-image` | Renders as a plain `View` |
+| `react-native-mmkv` | In-memory stub |
+| `@expo/vector-icons` | Renders icon name as a `<Text testID="material-community-icon">` |
+| `global.fetch` | Fails loudly — all network must go through `apiFetch` |
+
+#### What to test
+| Layer | Tool | What |
+|---|---|---|
+| Pure utilities (`validation.ts`, helpers) | Plain Jest | All branches of the function |
+| Query hooks (`useGoals`, `useCheckins`, …) | `renderHook` + `waitFor` | loading / success / error states |
+| Mutation hooks (`useCreateGoal`, `useDeleteGoal`, …) | `renderHook` + `act` | success path, optimistic update, error rollback |
+| UI primitives (`ScreenState`, `Skeleton`, …) | `render` + `screen` | all prop combinations including optional omissions |
+| Feature components (`GoalCard`, `SwipeCard`, …) | `render` + `fireEvent` | renders correctly, user interactions call correct callbacks |
+
+#### Hook test pattern
+```tsx
+function createWrapper() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  return { queryClient, wrapper };
+}
+```
+
+#### What NOT to test
+- Screen files (too much integration surface — covered by E2E)
+- Zustand store slices directly (test via consuming components/hooks)
+- Navigation calls (mock `router` and assert `router.push` was called)
+
+---
+
+### Server — Integration Tests
+
+**Stack**: `jest` + `ts-jest` · `supertest` · real PostgreSQL (`goalbuddy_test` DB)
+
+**Run**: `cd server && npm test`
+
+**Config**: `server/jest.config.js` · env setup: `server/jest-env-setup.js`
+
+#### Architecture
+```
+server/src/__tests__/
+├── setup/
+│   ├── db-helpers.ts      — testPool, truncateAll(), seed helpers
+│   ├── global-setup.ts    — runs once before all suites
+│   └── global-teardown.ts — closes testPool after all suites
+├── auth.test.ts
+├── users.test.ts
+├── goals.test.ts
+├── milestones.test.ts
+├── buddies.test.ts
+├── checkins.test.ts
+├── finder.test.ts
+├── stats.test.ts
+└── middleware.test.ts
+```
+
+#### Key rules
+- **No DB mocking** — tests hit a real `goalbuddy_test` PostgreSQL database
+- **`truncateAll()` in `beforeEach`** — every test starts with a clean slate
+- **`seedUser()` returns `{ ...user, token }`** — token signed with `test-secret-key`
+- **`--runInBand`** — tests run serially to avoid connection pool contention
+- **`jest-env-setup.js` in `setupFiles`** — sets `DATABASE_URL` before any module evaluates (prevents `db/index.ts` pool from pointing at the dev DB)
+
+#### Seed helper signatures
+```ts
+seedUser(overrides?)                                          // → { id, email, token, … }
+seedGoal(userId, { category?, isPublic?, coopOpen? })        // → goal row
+seedMilestone(goalId, userId, { title?, frequency? })        // → milestone row
+seedConnection(requesterId, receiverId, goalId, { status? }) // → connection row
+seedCheckin(connectionId, authorId, { message?, mood? })     // → check_in row
+```
+
+#### What each suite covers
+| File | Scope |
+|---|---|
+| `auth.test.ts` | register (201/409/400), login (200/401), JWT issues |
+| `users.test.ts` | GET /me, PATCH /me, GET /:id (404) |
+| `goals.test.ts` | CRUD, public goal filter/search, from-template, stats, ownership |
+| `milestones.test.ts` | create, update, log (idempotent/201), undo (204), feed |
+| `buddies.test.ts` | request accountability/coop, accept/decline, list, goal-stats |
+| `checkins.test.ts` | create (accepted/pending/forbidden), paginated GET with cursor |
+| `finder.test.ts` | deck candidates, swipe pass/like/mutual match |
+| `stats.test.ts` | GET by userId, 404 for non-existent user |
+| `middleware.test.ts` | auth failures, Zod 400, error response shape `{ error, code, retryable }` |
