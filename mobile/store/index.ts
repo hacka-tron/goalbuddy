@@ -1,13 +1,19 @@
 import { create } from 'zustand';
 import { createAuthSlice, AuthSlice } from './slices/authSlice';
+import { createThemeSlice, ThemeSlice } from './slices/themeSlice';
+import { createNotificationSlice, NotificationSlice } from './slices/notificationSlice';
 
-// Combine slices into a single store type
-type StoreState = AuthSlice; // Add other slices here as they are created
+type StoreState = AuthSlice & ThemeSlice & NotificationSlice;
 
 export const useStore = create<StoreState>()((...a) => ({
   ...createAuthSlice(...a),
+  ...createThemeSlice(...a),
+  ...createNotificationSlice(...a),
 }));
 
-// Export a convenience hook for selectors
-export const useAuth = () => useStore((state) => state);
-export const useAuthActions = () => useStore((state) => state.actions);
+// Auth selectors
+export const useAuthActions = () => useStore((s) => s.actions);
+
+// Re-export slice types for consumers that need them
+export type { AuthSlice, ThemeSlice, NotificationSlice };
+export type { BuddyTabKey } from './slices/notificationSlice';
