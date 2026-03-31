@@ -14,7 +14,7 @@ export const errorHandler = (
       error: 'Validation failed',
       code: 'VALIDATION_ERROR',
       retryable: false,
-      details: err.errors,
+      details: err.issues,
     });
   }
 
