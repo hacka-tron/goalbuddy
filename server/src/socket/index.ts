@@ -43,7 +43,6 @@ export const initSocket = (httpServer: HttpServer): SocketIOServer => {
   return io;
 };
 
-export const getIO = (): SocketIOServer => {
-  if (!io) throw new Error('Socket.io not initialized');
-  return io;
+export const getIO = (): SocketIOServer | null => {
+  return io ?? null;
 };

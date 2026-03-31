@@ -81,7 +81,10 @@ export class GoalService {
   }
 
   static async deleteGoal(userId: string, goalId: string) {
-    return query('DELETE FROM goals WHERE id = $1 AND user_id = $2', [goalId, userId]);
+    const result = await query('DELETE FROM goals WHERE id = $1 AND user_id = $2', [goalId, userId]);
+    if (result.rowCount === 0) {
+      throw new ServiceError('Goal not found', 404, 'NOT_FOUND');
+    }
   }
 
   static async fromTemplate(userId: string, sourceGoalId: string) {

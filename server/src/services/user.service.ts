@@ -5,7 +5,9 @@ export class UserService {
   static async getMe(userId: string) {
     const result = await query(
       `SELECT u.id, u.email, u.display_name, u.username, u.avatar_url, u.bio, u.theme,
-              u.notification_frequency, u.created_at, a.*
+              u.notification_frequency, u.created_at,
+              a.total_checkins, a.current_streak, a.longest_streak,
+              a.milestones_completed, a.response_rate, a.last_checkin_at, a.activity_level
        FROM users u
        LEFT JOIN activity_stats a ON a.user_id = u.id
        WHERE u.id = $1`,

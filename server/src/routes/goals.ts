@@ -12,7 +12,7 @@ const router = Router();
 const createGoalSchema = z.object({
   body: z.object({
     title: z.string().min(1),
-    category: z.string().min(1),
+    category: z.enum(['workout', 'study', 'career', 'health', 'creative', 'finance', 'social', 'other']),
     description: z.string().optional(),
     targetDate: z.string().optional(),
     isPublic: z.boolean().optional(),
@@ -129,7 +129,11 @@ router.delete('/:id', requireAuth, validate(goalIdParamSchema), async (req: Auth
   try {
     await GoalService.deleteGoal(req.userId!, req.params.id as string);
     res.status(204).send();
-  } catch {
+  } catch (err) {
+    if (err instanceof ServiceError) {
+      res.status(err.statusCode).json({ error: err.message, code: err.code, retryable: err.retryable });
+      return;
+    }
     res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR', retryable: true });
   }
 });

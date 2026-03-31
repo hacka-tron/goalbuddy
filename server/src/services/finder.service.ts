@@ -71,20 +71,6 @@ export class FinderService {
     let connection = null;
 
     if (action === 'like') {
-      // Auto-swipe back for @test.com users
-      const userCheck = await query(`SELECT email FROM users WHERE id = $1`, [swipedId]);
-      const swipedEmail: string = userCheck.rows[0]?.email || '';
-      if (swipedEmail.includes('@test.com') && cardGoalId) {
-        await query(
-          `INSERT INTO swipe_actions (swiper_id, swiped_id, action, mode, goal_id)
-           SELECT $1, $2, 'like', 'specific', $3
-           WHERE NOT EXISTS (
-             SELECT 1 FROM swipe_actions WHERE swiper_id = $1 AND swiped_id = $2 AND goal_id = $3
-           )`,
-          [swipedId, userId, cardGoalId]
-        );
-      }
-
       // Check for mutual like
       const reverseSwipe = await query(
         `SELECT goal_id FROM swipe_actions

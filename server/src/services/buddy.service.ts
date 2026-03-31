@@ -253,6 +253,14 @@ export class BuddyService {
       [userId, receiverId, goalId, connType, requesterGoalId]
     );
 
+    if (coopJoin && result.rows[0]) {
+      const updated = await query(
+        `UPDATE buddy_connections SET status = 'accepted', accepted_at = NOW() WHERE id = $1 RETURNING *`,
+        [result.rows[0].id]
+      );
+      result.rows[0] = updated.rows[0];
+    }
+
     return { connection: result.rows[0], newGoalId: requesterGoalId };
   }
 

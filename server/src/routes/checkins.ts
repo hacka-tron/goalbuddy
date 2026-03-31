@@ -50,8 +50,7 @@ router.post('/', requireAuth, validate(createCheckinSchema), async (req: AuthReq
   const { connectionId, message, mood, milestoneId } = req.body;
   try {
     const fullCheckIn = await CheckinService.createCheckin(req.userId!, connectionId, message, mood, milestoneId);
-    const io = getIO();
-    io.to(`connection:${connectionId}`).emit('new_checkin', fullCheckIn);
+    getIO()?.to(`connection:${connectionId}`).emit('new_checkin', fullCheckIn);
     res.status(201).json(fullCheckIn);
   } catch (err) {
     if (err instanceof ServiceError) {
