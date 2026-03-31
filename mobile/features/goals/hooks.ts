@@ -8,6 +8,7 @@ import {
   fetchGoalStats,
   createGoal,
   patchGoalPublic,
+  patchGoalCoopOpen,
   toggleMilestone as toggleMilestoneApi,
   createMilestone as createMilestoneApi,
   deleteGoal as deleteGoalApi,
@@ -79,6 +80,14 @@ export function usePatchGoalPublic(goalId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (isPublic: boolean) => patchGoalPublic(goalId, isPublic),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
+  });
+}
+
+export function usePatchGoalCoopOpen(goalId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (coopOpen: boolean) => patchGoalCoopOpen(goalId, coopOpen),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
   });
 }

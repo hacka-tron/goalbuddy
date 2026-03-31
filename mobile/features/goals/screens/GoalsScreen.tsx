@@ -4,14 +4,13 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TouchableWithoutFeedback, Modal, TextInput, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { FS, FW, LH } from '../../../theme/typography';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient, useMutation } from '@tanstack/react-query';
+import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { apiFetch } from '../../../lib/api';
 import { GOAL_CATEGORIES } from '../../../lib/constants';
-import { ColorPalette } from '../../../lib/constants';
 import { ActivityBadge } from '../../../shared/components/ActivityBadge';
 import { useThemeStore } from '../../../store/themeStore';
 import { Goal, Milestone, PublicGoal, MsFilter } from '../types';
@@ -20,17 +19,20 @@ import {
   useGoalMilestones,
   useGoalStats,
   usePatchGoalPublic,
+  usePatchGoalCoopOpen,
   useToggleMilestone,
   useCreateMilestone,
   useToggleMyMilestone,
   useMyMilestones,
   useCoopJoin,
+  useRequestBuddy,
   useGoalTemplate,
   usePublicGoals,
   useCreateGoal,
   useDeleteGoal,
 } from '../hooks';
 import { createMilestone as createMilestoneApi } from '../api';
+import { GoalCard } from '../components/GoalCard';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -65,6 +67,11 @@ const FREQUENCIES: { key: Milestone['frequency']; label: string }[] = [
   { key: 'once', label: 'Once' },
 ];
 
+const FREQ_LABELS: Record<Milestone['frequency'], string> = {
+  daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
+  once: 'Once', x_weekly: '×/week', custom_days: 'Custom',
+};
+
 function msMatchesFilter(ms: Milestone, filter: MsFilter): boolean {
   if (filter === 'all') return true;
   if (filter === 'today') return ms.frequency === 'daily' || ms.frequency === 'x_weekly' || ms.frequency === 'custom_days' || ms.frequency === 'once';
@@ -90,6 +97,7 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
   const { data: milestones = [], isLoading } = useGoalMilestones(goal.id);
   const { data: stats = [] } = useGoalStats(goal.id);
   const togglePublicMutation = usePatchGoalPublic(goal.id);
+  const toggleCoopMutation = usePatchGoalCoopOpen(goal.id);
   const toggleMsMutation = useToggleMilestone(goal.id);
   const addMsMutation = useCreateMilestone(goal.id);
   const deleteMutation = useDeleteGoal();
@@ -131,7 +139,6 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
 
   return (
     <SafeAreaView style={s.container}>
-      {/* Header */}
       <View style={s.configHeader}>
         <TouchableOpacity onPress={onBack} style={s.configBack}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primary} />
@@ -148,25 +155,46 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
         <Text style={s.configTitle}>{goal.title}</Text>
         {goal.description ? <Text style={s.configDesc}>{goal.description}</Text> : null}
 
-        {/* Public toggle */}
         <TouchableOpacity
           style={[s.publicRow, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => togglePublicMutation.mutate(!goal.is_public)}
+          disabled={goal.coop_open}
+          activeOpacity={goal.coop_open ? 1 : 0.8}
+        >
+          <MaterialCommunityIcons
+            name={goal.is_public || goal.coop_open ? 'eye-outline' : 'eye-off-outline'}
+            size={20}
+            color={goal.is_public || goal.coop_open ? colors.primary : colors.textSecondary}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.publicLabel, { color: colors.text }]}>{goal.is_public || goal.coop_open ? 'Public' : 'Private'}</Text>
+            <Text style={[s.publicSub, { color: colors.textSecondary }]}>
+              {goal.is_public || goal.coop_open ? 'Visible in Discover & Finder' : 'Only visible to you'}
+            </Text>
+          </View>
+          <View style={[s.toggle, { backgroundColor: goal.is_public || goal.coop_open ? colors.primary : colors.border }]}>
+            <View style={[s.toggleThumb, (goal.is_public || goal.coop_open) && s.toggleThumbOn]} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[s.publicRow, { backgroundColor: colors.card, borderColor: goal.coop_open ? colors.primary : colors.border }]}
+          onPress={() => toggleCoopMutation.mutate(!goal.coop_open)}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons
-            name={goal.is_public ? 'eye-outline' : 'eye-off-outline'}
+            name="account-multiple-outline"
             size={20}
-            color={goal.is_public ? colors.primary : colors.textSecondary}
+            color={goal.coop_open ? colors.primary : colors.textSecondary}
           />
           <View style={{ flex: 1 }}>
-            <Text style={[s.publicLabel, { color: colors.text }]}>{goal.is_public ? 'Public' : 'Private'}</Text>
+            <Text style={[s.publicLabel, { color: colors.text }]}>Co-op Goal</Text>
             <Text style={[s.publicSub, { color: colors.textSecondary }]}>
-              {goal.is_public ? 'Visible in Discover & Finder' : 'Only visible to you'}
+              {goal.coop_open ? 'Others can join and share this goal' : 'Enable to let someone work on this with you'}
             </Text>
           </View>
-          <View style={[s.toggle, { backgroundColor: goal.is_public ? colors.primary : colors.border }]}>
-            <View style={[s.toggleThumb, goal.is_public && s.toggleThumbOn]} />
+          <View style={[s.toggle, { backgroundColor: goal.coop_open ? colors.primary : colors.border }]}>
+            <View style={[s.toggleThumb, goal.coop_open && s.toggleThumbOn]} />
           </View>
         </TouchableOpacity>
 
@@ -193,7 +221,6 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
           );
         })()}
 
-        {/* Milestones section */}
         <View style={s.configSection}>
           <Text style={s.configSectionTitle}>Milestones</Text>
 
@@ -243,7 +270,6 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
             );
           })}
 
-          {/* Add milestone */}
           {!showAddForm ? (
             <TouchableOpacity
               style={[s.addMsBtn, { borderColor: colors.primary }]}
@@ -321,7 +347,7 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
                         onPress={() => {
                           setNewCustomDays((prev) => {
                             if (prev.includes(d)) {
-                              if (prev.length === 1) return prev; // at least 1 day required
+                              if (prev.length === 1) return prev;
                               return prev.filter((x) => x !== d);
                             }
                             return [...prev, d];
@@ -349,7 +375,6 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
           )}
         </View>
 
-        {/* Delete goal */}
         <TouchableOpacity
           style={[s.deleteGoalBtn, { borderColor: colors.error ?? '#EF4444' }]}
           onPress={handleDeleteGoal}
@@ -471,8 +496,20 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
     return true;
   });
 
-  const pending = filtered.filter((ms) => !ms.is_done_this_period);
-  const done = filtered.filter((ms) => ms.is_done_this_period);
+  const groupedData = useMemo(() => {
+    const pending = filtered.filter((ms) => !ms.is_done_this_period);
+    const done = filtered.filter((ms) => ms.is_done_this_period);
+    const data: any[] = [];
+    if (pending.length > 0) {
+      data.push({ type: 'header', label: `Pending · ${pending.length}` });
+      pending.forEach(ms => data.push({ type: 'item', data: ms }));
+    }
+    if (done.length > 0) {
+      data.push({ type: 'header', label: `Completed · ${done.length}` });
+      done.forEach(ms => data.push({ type: 'item', data: ms }));
+    }
+    return data;
+  }, [filtered]);
 
   const DATE_OPTIONS: { key: MsFilter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -487,14 +524,12 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Backdrop — closes dropdown when tapping outside */}
       {openDropdown !== null && (
         <TouchableWithoutFeedback onPress={() => setOpenDropdown(null)}>
           <View style={[StyleSheet.absoluteFillObject, { zIndex: 5 }]} />
         </TouchableWithoutFeedback>
       )}
 
-      {/* Filter bar (above backdrop) */}
       <View style={[s.filterBar, { zIndex: 10 }]}>
         <TouchableOpacity
           style={[s.filterPill, { borderColor: filter !== 'all' ? colors.primary : colors.border, backgroundColor: filter !== 'all' ? colors.primaryLight : colors.card }]}
@@ -516,7 +551,6 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
         </TouchableOpacity>
       </View>
 
-      {/* Dropdowns (above backdrop) */}
       {openDropdown === 'date' && (
         <View style={[s.dropdownPanel, { zIndex: 10, backgroundColor: colors.card, borderColor: colors.border }]}>
           {DATE_OPTIONS.map((opt) => {
@@ -559,46 +593,39 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
         </View>
       )}
 
-      {/* Scrollable milestone list */}
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={s.msViewContent}
+      <FlashList
+        data={groupedData}
+        renderItem={({ item }) => {
+          if (item.type === 'header') return <Text style={s.msGroupLabel}>{item.label}</Text>;
+          return <MsRow ms={item.data} onToggle={() => toggleMsMutation.mutate(item.data)} colors={colors} />;
+        }}
+        estimatedItemSize={80}
+        contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-      >
-        {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
-
-        {!isLoading && isMsError && milestones.length === 0 && (
-          <View style={s.errorState}>
-            <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
-            <Text style={s.errorStateText}>Couldn't load milestones. Check your connection.</Text>
-            <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-              <Text style={s.retryBtnText}>Try again</Text>
-            </TouchableOpacity>
-          </View>
+        ListEmptyComponent={() => (
+          !isLoading && !isMsError ? (
+            <View style={s.empty}>
+              <MaterialCommunityIcons name="check-circle-outline" size={52} color={colors.border} />
+              <Text style={s.emptyTitle}>No milestones</Text>
+              <Text style={s.emptyText}>Add milestones in My Goals</Text>
+            </View>
+          ) : null
         )}
-
-        {!isLoading && !isMsError && filtered.length === 0 && (
-          <View style={s.empty}>
-            <MaterialCommunityIcons name="check-circle-outline" size={52} color={colors.border} />
-            <Text style={s.emptyTitle}>No milestones</Text>
-            <Text style={s.emptyText}>Add milestones in My Goals</Text>
-          </View>
+        ListHeaderComponent={() => (
+          <>
+            {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
+            {!isLoading && isMsError && milestones.length === 0 && (
+              <View style={s.errorState}>
+                <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
+                <Text style={s.errorStateText}>Couldn't load milestones. Check your connection.</Text>
+                <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
+                  <Text style={s.retryBtnText}>Try again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
-
-        {pending.length > 0 && (
-          <View style={s.msGroup}>
-            <Text style={s.msGroupLabel}>Pending · {pending.length}</Text>
-            {pending.map((ms) => <MsRow key={ms.id} ms={ms} onToggle={() => toggleMsMutation.mutate(ms)} colors={colors} />)}
-          </View>
-        )}
-
-        {done.length > 0 && (
-          <View style={s.msGroup}>
-            <Text style={s.msGroupLabel}>Completed · {done.length}</Text>
-            {done.map((ms) => <MsRow key={ms.id} ms={ms} onToggle={() => toggleMsMutation.mutate(ms)} colors={colors} />)}
-          </View>
-        )}
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -615,7 +642,6 @@ function GoalsView({
   onSelectGoal: (g: Goal) => void;
 }) {
   const colors = useThemeStore((s) => s.colors);
-  const s = useMemo(() => makeStyles(colors), [colors]);
   const qc = useQueryClient();
   const [manualRefreshing, setManualRefreshing] = useState(false);
   const handleRefresh = useCallback(async () => {
@@ -630,85 +656,49 @@ function GoalsView({
   });
 
   return (
-    <ScrollView
-      contentContainerStyle={s.goalsViewContent}
-      refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-    >
-      {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
-
-      {!isLoading && goals.length === 0 && (
-        <View style={s.empty}>
-          <MaterialCommunityIcons name="flag-checkered" size={52} color={colors.border} />
-          <Text style={s.emptyTitle}>No goals yet</Text>
-          <Text style={s.emptyText}>Tap + to add your first goal</Text>
-        </View>
+    <FlashList
+      data={goals}
+      renderItem={({ item }) => (
+        <GoalCard
+          goal={item}
+          onPress={() => onSelectGoal(item)}
+          onTogglePublic={() => togglePublicMutation.mutate({ id: item.id, isPublic: !item.is_public })}
+          colors={colors}
+        />
       )}
-
-      {goals.map((goal) => {
-        const cat = GOAL_CATEGORIES.find((c) => c.key === goal.category);
-        return (
-          <TouchableOpacity key={goal.id} style={[s.goalCard, { backgroundColor: colors.card }]} onPress={() => onSelectGoal(goal)} activeOpacity={0.8}>
-            <View style={s.goalCardTop}>
-              <View style={[s.catBadge, { backgroundColor: colors.primaryLight }]}>
-                <MaterialCommunityIcons name={cat?.icon as MCIName} size={13} color={colors.primary} />
-                <Text style={[s.catLabel, { color: colors.primary }]}>{cat?.label}</Text>
-              </View>
-              <View style={s.goalCardRight}>
-                <TouchableOpacity
-                  onPress={(e) => { e.stopPropagation(); togglePublicMutation.mutate({ id: goal.id, isPublic: !goal.is_public }); }}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <MaterialCommunityIcons
-                    name={goal.is_public ? 'eye-outline' : 'eye-off-outline'}
-                    size={17}
-                    color={goal.is_public ? colors.primary : colors.border}
-                  />
-                </TouchableOpacity>
-                <MaterialCommunityIcons name="chevron-right" size={18} color={colors.textSecondary} />
-              </View>
-            </View>
-
-            <Text style={[s.goalCardTitle, { color: colors.text }]}>{goal.title}</Text>
-            {goal.description ? <Text style={[s.goalCardDesc, { color: colors.textSecondary }]}>{goal.description}</Text> : null}
-
-            <View style={s.buddyRow}>
-              {goal.connection_status === 'accepted' ? (
-                <View style={[s.buddyStatusPill, { backgroundColor: colors.primaryLight }]}>
-                  <MaterialCommunityIcons name="account-check" size={13} color={colors.primary} />
-                  <Text style={[s.buddyStatusText, { color: colors.primary }]}>{goal.buddy_name}</Text>
-                  {goal.buddy_activity_level && <ActivityBadge level={goal.buddy_activity_level} small />}
-                </View>
-              ) : goal.has_pending_request ? (
-                <View style={[s.buddyStatusPill, { backgroundColor: colors.accentLight }]}>
-                  <MaterialCommunityIcons name="account-clock-outline" size={13} color={colors.accent} />
-                  <Text style={[s.buddyStatusText, { color: colors.accent }]}>Request pending</Text>
-                </View>
-              ) : (
-                <View style={[s.buddyStatusPill, { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }]}>
-                  <MaterialCommunityIcons name="account-plus-outline" size={13} color={colors.textSecondary} />
-                  <Text style={[s.buddyStatusText, { color: colors.textSecondary }]}>No buddy yet</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        );
-      })}
-
-      <View style={{ height: 100 }} />
-    </ScrollView>
+      estimatedItemSize={120}
+      contentContainerStyle={{ padding: 16 }}
+      refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
+      ListEmptyComponent={() => (
+        !isLoading ? (
+          <View style={s.empty}>
+            <MaterialCommunityIcons name="flag-checkered" size={52} color={colors.border} />
+            <Text style={s.emptyTitle}>No goals yet</Text>
+            <Text style={s.emptyText}>Tap + to add your first goal</Text>
+          </View>
+        ) : null
+      )}
+      ListHeaderComponent={() => (
+        isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} /> : null
+      )}
+      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      ListFooterComponent={() => <View style={{ height: 100 }} />}
+    />
   );
 }
 
 // ─── GoalDetailSheet ──────────────────────────────────────────────────────────
 
 function GoalDetailSheet({
-  goal, onClose, onCoopJoin, onUseTemplate, coopPending, templatePending,
+  goal, onClose, onCoopJoin, onBuddyRequest, onUseTemplate, coopPending, buddyPending, templatePending,
 }: {
   goal: PublicGoal;
   onClose: () => void;
   onCoopJoin: () => void;
+  onBuddyRequest: () => void;
   onUseTemplate: () => void;
   coopPending: boolean;
+  buddyPending: boolean;
   templatePending: boolean;
 }) {
   const colors = useThemeStore((s) => s.colors);
@@ -717,13 +707,16 @@ function GoalDetailSheet({
 
   const { data: milestones = [], isLoading } = useGoalMilestones(goal.id);
 
-  const coopLabel = () => {
-    if (goal.has_buddy) return 'Spot taken';
+  const isCoop = goal.coop_open;
+  const actionDisabled = goal.has_buddy || goal.my_request_status != null;
+  const actionLabel = () => {
+    if (goal.has_buddy) return isCoop ? 'Spot taken' : 'Already buddied';
     if (goal.my_request_status === 'pending') return 'Request sent';
-    if (goal.my_request_status === 'accepted') return 'Joined!';
-    return 'Join Co-op';
+    if (goal.my_request_status === 'accepted') return isCoop ? 'Joined!' : 'Buddied!';
+    return isCoop ? 'Join Co-op' : 'Buddy Up';
   };
-  const coopDisabled = goal.has_buddy || goal.my_request_status != null;
+  const actionPending = isCoop ? coopPending : buddyPending;
+  const onAction = isCoop ? onCoopJoin : onBuddyRequest;
 
   return (
     <SafeAreaView style={[s.discoverScreen, { backgroundColor: colors.background }]}>
@@ -755,16 +748,16 @@ function GoalDetailSheet({
         {/* Actions */}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <TouchableOpacity
-            style={[s.saveBtn, { flex: 1, backgroundColor: coopDisabled ? colors.card : colors.primary, borderWidth: coopDisabled ? 1 : 0, borderColor: colors.border }]}
-            onPress={onCoopJoin}
-            disabled={coopDisabled || coopPending}
+            style={[s.saveBtn, { flex: 1, backgroundColor: actionDisabled ? colors.card : colors.primary, borderWidth: actionDisabled ? 1 : 0, borderColor: colors.border }]}
+            onPress={onAction}
+            disabled={actionDisabled || actionPending}
           >
-            {coopPending
+            {actionPending
               ? <ActivityIndicator color="#fff" size="small" />
               : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  {!coopDisabled && <MaterialCommunityIcons name="account-multiple-outline" size={16} color="#fff" />}
-                  <Text style={[s.saveBtnText, { color: coopDisabled ? colors.textSecondary : '#fff' }]}>{coopLabel()}</Text>
+                  {!actionDisabled && <MaterialCommunityIcons name={isCoop ? 'account-multiple-outline' : 'handshake-outline'} size={16} color="#fff" />}
+                  <Text style={[s.saveBtnText, { color: actionDisabled ? colors.textSecondary : '#fff' }]}>{actionLabel()}</Text>
                 </View>
               )}
           </TouchableOpacity>
@@ -816,6 +809,7 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
 
   const { data: results = [], isLoading } = usePublicGoals(debouncedSearch, filterCat, buddyFilter);
   const coopJoinMutation = useCoopJoin();
+  const buddyRequestMutation = useRequestBuddy();
   const useTemplateMutation = useGoalTemplate();
 
   const handleSearch = (text: string) => {
@@ -847,8 +841,17 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
               },
             });
           }}
+          onBuddyRequest={() => {
+            buddyRequestMutation.mutate(selectedGoal.id, {
+              onSuccess: () => {
+                setPendingJoins((prev) => new Set([...prev, selectedGoal.id]));
+                setSelectedGoal((prev) => prev ? { ...prev, my_request_status: 'pending' } : null);
+              },
+            });
+          }}
           onUseTemplate={() => useTemplateMutation.mutate(selectedGoal.id)}
           coopPending={coopJoinMutation.isPending}
+          buddyPending={buddyRequestMutation.isPending}
           templatePending={useTemplateMutation.isPending}
         />
       </Modal>
@@ -967,6 +970,12 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
                       <MaterialCommunityIcons name={cat?.icon as MCIName} size={12} color={colors.primary} />
                       <Text style={[s.catLabel, { color: colors.primary }]}>{cat?.label}</Text>
                     </View>
+                    {!isPaired && (
+                      <View style={[s.catBadge, { backgroundColor: g.coop_open ? colors.primaryLight : colors.card, borderWidth: 1, borderColor: g.coop_open ? colors.primary : colors.border }]}>
+                        <MaterialCommunityIcons name={g.coop_open ? 'account-multiple-outline' : 'handshake-outline'} size={12} color={g.coop_open ? colors.primary : colors.textSecondary} />
+                        <Text style={[s.catLabel, { color: g.coop_open ? colors.primary : colors.textSecondary }]}>{g.coop_open ? 'Co-op' : 'Buddy Up'}</Text>
+                      </View>
+                    )}
                     {isPaired && (
                       <View style={[s.catBadge, { backgroundColor: colors.border }]}>
                         <MaterialCommunityIcons name="account-check" size={12} color={colors.textSecondary} />
@@ -1034,6 +1043,10 @@ export default function GoalsScreen() {
 
   const handleAddGoal = async () => {
     if (!newTitle || !newCategory) return;
+    if ((newIsPublic || newCoopOpen) && draftMilestones.length === 0) {
+      Alert.alert('Add a Milestone', 'Public goals need at least one milestone so your buddy knows what to track.');
+      return;
+    }
     try {
       const newGoal = await addMutation.mutateAsync({
         title: newTitle, category: newCategory, description: newDescription,

@@ -1,55 +1,42 @@
-# 🛠 GoalBuddy Engineering Standards — v2026.3 (Unified)
+# 🛠 GoalBuddy Engineering Standards (v2026.3)
 
-## 0. AI ROLE & MANDATE
-You are a senior full-stack architect. You prioritize **type safety, offline resilience, and performance**.
-All code must follow these standards. If a request conflicts with these, propose a compliant alternative.
-
----
-
-## 1. Mobile Architecture & State (React Native / Expo)
-
-### State Management
-- **Zustand Slices**: Split the store into logical slices (e.g., `createGoalSlice`). 
-- **Selectors**: Always use `useStore(s => s.field)` to prevent "God Store" re-render loops. Never destructure the whole store.
-- **Server State**: TanStack Query (v5+) owns all server data. 
-- **Query Key Factories**: Use factories (e.g., `goalKeys.all`)—never hardcode string keys.
+## 📱 Mobile Engineering Standards
+### 1. Architecture & State
+- **Zustand Slices**: Split the store into logical slices (e.g., `createGoalSlice`). Use Selectors `useStore(s => s.field)` to prevent "God Store" re-render loops.
+- **Server State**: TanStack Query (v5+) owns all server data. Use Query Key Factories (e.g., `goalKeys.all`)—never hardcode string keys.
 - **Data Flow**: UI → Hooks → Services → API → Backend. Never fetch in render.
-
-### Performance & UI
 - **Offline Resilience**: Use `react-native-mmkv` with TanStack's `createPersister`. Goal data must be visible offline.
-- **Styles**: Use NativeWind v4 or `useMemo(() => makeStyles(colors), [colors])`. Never call `makeStyles` bare in render.
-- **New Architecture**: Use Expo Modules API only. No legacy native modules or `findNodeHandle`.
+
+### 2. Component Performance
+- **Styles**: Use NativeWind v4 for utilities or `useMemo(() => makeStyles(colors), [colors])`. Never call `makeStyles` bare in render.
+- **New Architecture**: No legacy native modules or `findNodeHandle`. Use Expo Modules API only.
 - **Image Handling**: Always use `expo-image` for high-performance caching and blur-up placeholders.
 - **Lists**: Use `FlashList` (Shopify) for complex lists or `FlatList` for basics. Implement `getItemLayout` for fixed-height rows.
-- **UX & Interaction**:
-  - Screen States: Every screen must handle **Loading (Skeletons)**, **Empty**, **Content**, and **Error (Actionable)** states.
-  - Edge-to-Edge: Android must be translucent; use `expo-system-ui` to sync root background colors.
-  - Optimistic Updates: Use TanStack `onMutate` to update UI immediately; rollback on failure.
-  - Haptics: Apply subtle haptic feedback (`expo-haptics`) to primary success/error actions.
+
+### 3. UX & Interaction
+- **Screen States**: Every screen must handle Loading (Skeletons), Empty, Content, and Error (Actionable) states.
+- **Edge-to-Edge**: Android must be translucent; use `expo-system-ui` to sync root background colors and prevent splash-screen flashes.
+- **Optimistic Updates**: Use TanStack `onMutate` to update UI immediately; rollback on failure.
+- **Haptics**: Apply subtle haptic feedback (`expo-haptics`) to primary success/error actions.
 
 ---
 
-## 2. Backend Architecture (Node.js / Express)
-
-### Type Safety & Validation
+## 🛠 Backend Engineering Standards (Node.js/Express)
+### 1. Type Safety & Validation
 - **Zod Validation**: Every request (`req.body`, `req.query`, `req.params`) must be validated using Zod schemas before reaching the controller.
-- **Shared Types**: Use a `shared/` directory to share TypeScript interfaces between the Express server and Expo app.
-- **Strict Typing**: Avoid `any`. Use Express `RequestHandler` types for controller signatures.
+- **Shared Types**: Use a `shared/` directory or a monorepo structure to share TypeScript interfaces between the Express server and Expo app to ensure 100% type-safe API calls.
+- **Strict Typing**: Avoid `any` at all costs. Use `RequestHandler` types from Express to define controller signatures.
 
-### Architecture & Middleware
-- **Controller/Service Pattern**: Logic stays in Services; Controllers handle request/response orchestration.
-- **Async Error Handling**: Use an `asyncHandler` wrapper or `express-async-errors` to ensure all rejected promises reach global error middleware.
-- **Security**: Standardize on `Helmet.js`. Implement custom Deny List logic as top-level middleware.
-- **Graceful Shutdown**: Implement listeners for `SIGTERM` and `SIGINT` to close DB connections.
+### 2. Architecture & Middleware
+- **Controller/Service Pattern**: Logic stays in Services; Controllers only handle request/response orchestration.
+- **Async Error Handling**: Use an `asyncHandler` wrapper or `express-async-errors` to ensure all rejected promises are caught by the global error middleware without crashing the node process.
+- **Security**: Standardize on `Helmet.js` for headers and ensure your custom Deny List logic is implemented as a top-level Express middleware.
 
-### Database (PostgreSQL)
-- **ORM Choice**: Prefer Prisma or Drizzle for type-safe queries. Avoid raw SQL strings.
-- **N+1 Prevention**: Always use `include` (Prisma) or `leftJoin` (Drizzle) for related data.
-- **API Resilience**: Error responses must follow: `{ error: string, code: string, retryable: boolean }`.
+### 3. Performance & Database (PostgreSQL)
+- **Prisma/Drizzle**: (Assuming an ORM) Use Type-safe queries. Avoid raw strings for SQL to prevent injection.
+- **Connection Pooling**: Ensure PostgreSQL connections are pooled correctly to handle the concurrent nature of Node.
+- **N+1 Prevention**: Always use `include` (Prisma) or `leftJoin` (Drizzle) to fetch Goal and Buddy data in a single query.
 
----
-
-## 3. Implementation Roadmap
-When adding features, ensure these dependencies are present or added:
-- **Mobile**: `react-native-mmkv`, `@shopify/flash-list`, `expo-image`, `expo-haptics`, `nativewind`.
-- **Backend**: `zod`, `helmet`, `express-async-errors`.
+### 4. API Resilience
+- **JSON Consistency**: All error responses must follow a standard structure: `{ error: string, code: string, retryable: boolean }`.
+- **Graceful Shutdown**: Implement listeners for `SIGTERM` and `SIGINT` to close database connections before the process exits.

@@ -28,6 +28,9 @@ export const createGoal = (payload: {
 export const patchGoalPublic = (id: string, isPublic: boolean): Promise<Goal> =>
   apiFetch(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify({ isPublic }) });
 
+export const patchGoalCoopOpen = (id: string, coopOpen: boolean): Promise<Goal> =>
+  apiFetch(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify({ coopOpen, ...(coopOpen ? { isPublic: true } : {}) }) });
+
 export const toggleMilestone = (ms: Milestone, goalId: string): Promise<unknown> => {
   if (ms.frequency === 'once') {
     return apiFetch(`/milestones/${ms.id}`, {

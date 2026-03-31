@@ -26,7 +26,8 @@
     },
     "scheme": "goalbuddy",
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-image"
     ]
   }
 }

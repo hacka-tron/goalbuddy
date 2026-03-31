@@ -37,3 +37,7 @@ cd mobile && npx expo start
 
 ## Test Accounts
 - `bagelbogel@bagelbogel.com` / `1234`
+
+## Workflow & Deployment
+- **Feature Check-in**: After completing and verifying a major code change or new feature, ask the user: "Should I commit and push these changes to origin?"
+- **Atomic Commits**: Ensure commits are focused and follow the project's commit message style.

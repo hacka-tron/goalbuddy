@@ -10,6 +10,7 @@ router.get('/public', requireAuth, async (req: AuthRequest, res: Response): Prom
   try {
     const result = await query(
       `SELECT g.id, g.title, g.category, g.description, g.target_date,
+              g.coop_open,
               u.id AS user_id, u.display_name, u.username, u.avatar_url,
               a.activity_level, a.current_streak,
               COALESCE(ms.milestone_count, 0) AS milestone_count,
@@ -212,7 +213,7 @@ router.get('/:goalId/stats', requireAuth, async (req: AuthRequest, res: Response
 
 // PATCH /goals/:id
 router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { title, description, targetDate, status, isPublic } = req.body;
+  const { title, description, targetDate, status, isPublic, coopOpen } = req.body;
   try {
     const result = await query(
       `UPDATE goals SET
@@ -221,9 +222,10 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promi
         target_date = COALESCE($3, target_date),
         status = COALESCE($4, status),
         is_public = COALESCE($5, is_public),
+        coop_open = COALESCE($6, coop_open),
         updated_at = NOW()
-       WHERE id = $6 AND user_id = $7 RETURNING *`,
-      [title, description, targetDate, status, isPublic, req.params.id, req.userId]
+       WHERE id = $7 AND user_id = $8 RETURNING *`,
+      [title, description, targetDate, status, isPublic, coopOpen ?? null, req.params.id, req.userId]
     );
     if (!result.rows[0]) { res.status(404).json({ error: 'Goal not found' }); return; }
     res.json(result.rows[0]);

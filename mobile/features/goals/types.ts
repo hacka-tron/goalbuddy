@@ -40,6 +40,7 @@ export type PublicGoal = {
   activity_level: string;
   current_streak: number;
   milestone_count: number;
+  coop_open: boolean;
   has_buddy: boolean;
   my_request_status: string | null;
 };
