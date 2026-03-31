@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useThemeStore } from '../../../store/themeStore';
 import { WinCard } from '../components/WinCard';
 import { useWinsFeed } from '../hooks';
+import { CardSkeleton } from '../../../components/ui/Skeleton';
+import { ScreenState } from '../../../components/ui/ScreenState';
 
 export default function MilestonesScreen() {
   const colors = useThemeStore((s) => s.colors);
@@ -26,13 +28,12 @@ export default function MilestonesScreen() {
   if (isError) return (
     <SafeAreaView style={s.container}>
       <Text style={s.title}>Wins</Text>
-      <View style={s.errorState}>
-        <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
-        <Text style={s.errorText}>Couldn't load wins. Check your connection.</Text>
-        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-          <Text style={s.retryText}>Try again</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenState
+        type="error"
+        title="Couldn't load wins"
+        message="Check your connection and try again."
+        onRetry={refetch}
+      />
     </SafeAreaView>
   );
 
@@ -41,21 +42,22 @@ export default function MilestonesScreen() {
       <Text style={s.title}>Wins</Text>
 
       <FlashList
-        data={feed}
-        renderItem={({ item }) => <WinCard item={item} colors={colors} />}
-        estimatedItemSize={120}
+        data={isLoading && !manualRefreshing ? ([1, 2, 3] as any) : feed}
+        renderItem={({ item }) => (
+          isLoading && !manualRefreshing
+            ? <CardSkeleton height={120} />
+            : <WinCard item={item as any} colors={colors} />
+        )}
         contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-        ListHeaderComponent={() => (
-          isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} /> : null
-        )}
         ListEmptyComponent={() => (
           !isLoading ? (
-            <View style={s.empty}>
-              <MaterialCommunityIcons name="trophy-outline" size={52} color={colors.border} />
-              <Text style={s.emptyTitle}>No wins yet</Text>
-              <Text style={s.emptyText}>Complete milestones and they'll show up here</Text>
-            </View>
+            <ScreenState
+              type="empty"
+              title="No wins yet"
+              message="Complete milestones and they'll show up here"
+              icon="trophy-outline"
+            />
           ) : null
         )}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Alert, ActivityIndicator,
@@ -35,7 +36,15 @@ export default function SettingsScreen() {
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: async () => { await logout(); router.replace('/(auth)/login'); } },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          await logout();
+          router.replace('/(auth)/login');
+        },
+      },
     ]);
   };
 
@@ -146,6 +155,9 @@ export default function SettingsScreen() {
             ? <ActivityIndicator color="#fff" />
             : <Text style={s.saveBtnText}>Save Profile</Text>}
         </TouchableOpacity>
+        {saveMutation.isError && (
+          <Text style={s.saveError}>{(saveMutation.error as Error).message}</Text>
+        )}
 
         {/* Account */}
         <View style={s.card}>
@@ -197,6 +209,7 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
 
   saveBtn:          { backgroundColor: colors.primary, borderRadius: 12, padding: 16, alignItems: 'center' },
   saveBtnText:      { color: '#fff', fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
+  saveError:        { fontSize: FS.secondary, lineHeight: LH.secondary, color: '#EF4444', textAlign: 'center' },
   logoutBtn:        { backgroundColor: colors.accentLight, borderRadius: 12, padding: 16, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 },
   logoutText:       { color: colors.accent, fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
 });

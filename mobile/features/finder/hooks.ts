@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { fetchMyGoals, fetchDeck, swipe } from './api';
 import { Goal, Candidate } from './types';
 import { goalKeys } from '../goals/hooks';
@@ -45,10 +46,13 @@ export function useSwipe(
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { swipedId: string; action: string; mode: string; goalId?: string }) =>
+    mutationFn: (body: { swipedId: string; action: string; mode: string; goalId?: string; cardGoalId?: string }) =>
       swipe(body),
     onSuccess: (data) => {
-      if (data.matched) onMatch(deck[deckIndex]);
+      if (data.matched) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        onMatch(deck[deckIndex]);
+      }
       onAdvance();
       resetPosition();
       qc.invalidateQueries({ queryKey: buddyKeys.all });

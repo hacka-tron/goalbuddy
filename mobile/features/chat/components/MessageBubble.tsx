@@ -22,7 +22,6 @@ export function MessageBubble({ item, isMe, isFirstInGroup, colors, onRetry }: P
   return (
     <View style={[s.bubbleRow, isMe ? s.bubbleRowRight : s.bubbleRowLeft, isPending && { opacity: 0.5 }]}>
       <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}>
-        {!isMe && isFirstInGroup && <Text style={s.bubbleSender}>{item.display_name}</Text>}
         {item.milestone_title && (
           <View style={s.milestoneTag}>
             <MaterialCommunityIcons
@@ -59,7 +58,6 @@ const makeStyles = (colors: any) => StyleSheet.create({
   bubble:        { maxWidth: '75%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, gap: 3 },
   bubbleMe:      { backgroundColor: colors.primary, borderTopRightRadius: 4 },
   bubbleThem:    { backgroundColor: colors.card, borderTopLeftRadius: 4, borderWidth: 1, borderColor: colors.border },
-  bubbleSender:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold, color: colors.primary, marginBottom: 1 },
   bubbleText:    { fontSize: FS.body, lineHeight: LH.body },
   bubbleTextMe:  { color: '#fff' },
   bubbleTextThem:{ color: colors.text },

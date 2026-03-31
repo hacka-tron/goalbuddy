@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   ActivityIndicator, PanResponder, Animated, Dimensions,
@@ -12,6 +13,8 @@ import { ActivityBadge } from '../../../shared/components/ActivityBadge';
 import { SwipeCard } from '../components/SwipeCard';
 import { useMyGoals, useDeck, useSwipe } from '../hooks';
 import { Goal, Candidate } from '../types';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { ScreenState } from '../../../components/ui/ScreenState';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 100;
@@ -45,6 +48,8 @@ export default function FinderScreen() {
   const swipeCard = (action: 'like' | 'pass') => {
     const card = deck[deckIndex];
     if (!card) return;
+    if (action === 'like') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    else Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Animated.timing(position, {
       toValue: { x: action === 'like' ? SW * 1.5 : -SW * 1.5, y: 0 },
       duration: 240,
@@ -129,37 +134,41 @@ export default function FinderScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 80 }} />}
+      {isLoading && (
+        <View style={{ flex: 1, padding: 32, justifyContent: 'center' }}>
+          <Skeleton height={CARD_HEIGHT} borderRadius={28} />
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 32, marginTop: 40 }}>
+            <Skeleton width={68} height={68} borderRadius={34} />
+            <Skeleton width={68} height={68} borderRadius={34} />
+          </View>
+        </View>
+      )}
 
       {!isLoading && isDeckError && (
-        <View style={s.empty}>
-          <MaterialCommunityIcons name="wifi-off" size={52} color={colors.border} />
-          <Text style={s.emptyTitle}>Couldn't load buddies</Text>
-          <Text style={s.emptyText}>Check your connection and try again</Text>
-          <TouchableOpacity style={s.retryBtn} onPress={() => refetchDeck()}>
-            <Text style={s.retryText}>Try again</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenState
+          type="error"
+          title="Couldn't load buddies"
+          message="Check your connection and try again."
+          onRetry={refetchDeck}
+        />
       )}
 
       {!isLoading && !isDeckError && isLocked && (
-        <View style={s.empty}>
-          <View style={[s.emptyIconWrap, { borderColor: colors.primary }]}>
-            <MaterialCommunityIcons name="handshake" size={32} color={colors.primary} />
-          </View>
-          <Text style={s.emptyTitle}>You're matched!</Text>
-          <Text style={s.emptyText}>You already have a buddy for this goal.{'\n'}Head to Buddies to chat.</Text>
-        </View>
+        <ScreenState
+          type="empty"
+          title="You're matched!"
+          message={"You already have a buddy for this goal.\nHead to Buddies to chat."}
+          icon="handshake"
+        />
       )}
 
       {!isLoading && !isDeckError && !isLocked && !currentCard && (
-        <View style={s.empty}>
-          <View style={s.emptyIconWrap}>
-            <MaterialCommunityIcons name="account-search-outline" size={32} color={colors.textSecondary} />
-          </View>
-          <Text style={s.emptyTitle}>No buddies found</Text>
-          <Text style={s.emptyText}>Nobody else is working on this goal yet.{'\n'}Check back later or invite a friend.</Text>
-        </View>
+        <ScreenState
+          type="empty"
+          title="No buddies found"
+          message={"Nobody else is working on this goal yet.\nCheck back later or invite a friend."}
+          icon="account-search-outline"
+        />
       )}
 
       {!isLoading && !isDeckError && !isLocked && currentCard && (

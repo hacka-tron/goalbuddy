@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useFocusEffect } from 'expo-router';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
@@ -13,6 +14,7 @@ import { apiFetch } from '../../../lib/api';
 import { GOAL_CATEGORIES } from '../../../lib/constants';
 import { ActivityBadge } from '../../../shared/components/ActivityBadge';
 import { useThemeStore } from '../../../store/themeStore';
+import { ColorPalette } from '../../../lib/constants';
 import { Goal, Milestone, PublicGoal, MsFilter } from '../types';
 import {
   useGoals,
@@ -33,6 +35,8 @@ import {
 } from '../hooks';
 import { createMilestone as createMilestoneApi } from '../api';
 import { GoalCard } from '../components/GoalCard';
+import { CardSkeleton } from '../../../components/ui/Skeleton';
+import { ScreenState } from '../../../components/ui/ScreenState';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -157,7 +161,7 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
 
         <TouchableOpacity
           style={[s.publicRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => togglePublicMutation.mutate(!goal.is_public)}
+          onPress={() => { Haptics.selectionAsync(); togglePublicMutation.mutate(!goal.is_public); }}
           disabled={goal.coop_open}
           activeOpacity={goal.coop_open ? 1 : 0.8}
         >
@@ -240,7 +244,7 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
               <TouchableOpacity
                 key={ms.id}
                 style={[s.msCard, { backgroundColor: colors.card, borderColor: done ? colors.primary : colors.border }]}
-                onPress={() => toggleMsMutation.mutate(ms)}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleMsMutation.mutate(ms); }}
                 activeOpacity={0.75}
               >
                 <MaterialCommunityIcons
@@ -376,12 +380,12 @@ function GoalConfig({ goal, onBack }: { goal: Goal; onBack: () => void }) {
         </View>
 
         <TouchableOpacity
-          style={[s.deleteGoalBtn, { borderColor: colors.error ?? '#EF4444' }]}
+          style={[s.deleteGoalBtn, { borderColor: '#EF4444' }]}
           onPress={handleDeleteGoal}
           disabled={deleteMutation.isPending}
         >
-          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.error ?? '#EF4444'} />
-          <Text style={[s.deleteGoalText, { color: colors.error ?? '#EF4444' }]}>Delete Goal</Text>
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={'#EF4444'} />
+          <Text style={[s.deleteGoalText, { color: '#EF4444' }]}>Delete Goal</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -522,6 +526,25 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
   const goalLabel = selectedGoals.size === 0 ? 'All Goals' : `${selectedGoals.size} Selected`;
   const goalActive = selectedGoals.size > 0;
 
+  if (isLoading && !manualRefreshing) {
+    return (
+      <View style={{ flex: 1, padding: 16 }}>
+        {[1, 2, 3, 4, 5].map((i) => <CardSkeleton key={i} height={80} />)}
+      </View>
+    );
+  }
+
+  if (isMsError && milestones.length === 0) {
+    return (
+      <ScreenState
+        type="error"
+        title="Couldn't load milestones"
+        message="Check your connection and try again."
+        onRetry={refetch}
+      />
+    );
+  }
+
   return (
     <View style={{ flex: 1 }}>
       {openDropdown !== null && (
@@ -597,33 +620,17 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
         data={groupedData}
         renderItem={({ item }) => {
           if (item.type === 'header') return <Text style={s.msGroupLabel}>{item.label}</Text>;
-          return <MsRow ms={item.data} onToggle={() => toggleMsMutation.mutate(item.data)} colors={colors} />;
+          return <MsRow ms={item.data} onToggle={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleMsMutation.mutate(item.data); }} colors={colors} />;
         }}
-        estimatedItemSize={80}
         contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
         ListEmptyComponent={() => (
-          !isLoading && !isMsError ? (
-            <View style={s.empty}>
-              <MaterialCommunityIcons name="check-circle-outline" size={52} color={colors.border} />
-              <Text style={s.emptyTitle}>No milestones</Text>
-              <Text style={s.emptyText}>Add milestones in My Goals</Text>
-            </View>
-          ) : null
-        )}
-        ListHeaderComponent={() => (
-          <>
-            {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
-            {!isLoading && isMsError && milestones.length === 0 && (
-              <View style={s.errorState}>
-                <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
-                <Text style={s.errorStateText}>Couldn't load milestones. Check your connection.</Text>
-                <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-                  <Text style={s.retryBtnText}>Try again</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </>
+          <ScreenState
+            type="empty"
+            title="No milestones"
+            message="Add milestones in My Goals"
+            icon="check-circle-outline"
+          />
         )}
       />
     </View>
@@ -633,11 +640,12 @@ function MilestonesView({ goals }: { goals: Goal[] }) {
 // ─── GoalsView ────────────────────────────────────────────────────────────────
 
 function GoalsView({
-  goals, isLoading, refetch,
+  goals, isLoading, isError, refetch,
   onSelectGoal,
 }: {
   goals: Goal[];
   isLoading: boolean;
+  isError: boolean;
   refetch: () => void;
   onSelectGoal: (g: Goal) => void;
 }) {
@@ -655,6 +663,25 @@ function GoalsView({
     onSuccess: () => qc.invalidateQueries({ queryKey: ['goals'] }),
   });
 
+  if (isLoading && !manualRefreshing) {
+    return (
+      <View style={{ flex: 1, padding: 16 }}>
+        {[1, 2, 3, 4].map((i) => <CardSkeleton key={i} />)}
+      </View>
+    );
+  }
+
+  if (isError && goals.length === 0) {
+    return (
+      <ScreenState
+        type="error"
+        title="Couldn't load goals"
+        message="Check your connection and try again."
+        onRetry={refetch}
+      />
+    );
+  }
+
   return (
     <FlashList
       data={goals}
@@ -666,20 +693,15 @@ function GoalsView({
           colors={colors}
         />
       )}
-      estimatedItemSize={120}
       contentContainerStyle={{ padding: 16 }}
       refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
       ListEmptyComponent={() => (
-        !isLoading ? (
-          <View style={s.empty}>
-            <MaterialCommunityIcons name="flag-checkered" size={52} color={colors.border} />
-            <Text style={s.emptyTitle}>No goals yet</Text>
-            <Text style={s.emptyText}>Tap + to add your first goal</Text>
-          </View>
-        ) : null
-      )}
-      ListHeaderComponent={() => (
-        isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} /> : null
+        <ScreenState
+          type="empty"
+          title="No goals yet"
+          message="Tap + to add your first goal"
+          icon="flag-checkered"
+        />
       )}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       ListFooterComponent={() => <View style={{ height: 100 }} />}
@@ -951,12 +973,18 @@ function DiscoverModal({ onClose, myGoals }: { onClose: () => void; myGoals: Goa
         )}
 
         <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}>
-          {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
-          {!isLoading && results.length === 0 && (
-            <View style={s.empty}>
-              <MaterialCommunityIcons name="magnify" size={40} color={colors.border} />
-              <Text style={s.emptyTitle}>No results</Text>
+          {isLoading && (
+            <View style={{ gap: 12 }}>
+              {[1, 2, 3].map((i) => <CardSkeleton key={i} />)}
             </View>
+          )}
+          {!isLoading && results.length === 0 && (
+            <ScreenState
+              type="empty"
+              title="No goals found"
+              message="Try searching for something else"
+              icon="magnify"
+            />
           )}
           {results.map((g: PublicGoal) => {
             const cat = GOAL_CATEGORIES.find((c) => c.key === g.category);
@@ -1068,21 +1096,6 @@ export default function GoalsScreen() {
     return <GoalConfig goal={fresh} onBack={() => setSelectedGoal(null)} />;
   }
 
-  if (isError && goals.length === 0) return (
-    <SafeAreaView style={s.container}>
-      <View style={s.topBar}>
-        <Text style={s.title}>Goals</Text>
-      </View>
-      <View style={s.errorState}>
-        <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
-        <Text style={s.errorStateText}>Couldn't load goals. Check your connection.</Text>
-        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-          <Text style={s.retryBtnText}>Try again</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
-
   return (
     <SafeAreaView style={s.container}>
       {/* Top bar */}
@@ -1106,6 +1119,7 @@ export default function GoalsScreen() {
         : <GoalsView
             goals={goals}
             isLoading={isLoading}
+            isError={isError}
             refetch={refetch}
             onSelectGoal={setSelectedGoal}
           />
@@ -1393,6 +1407,10 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   freqRow:          { flexDirection: 'row', gap: 8 },
   freqChip:         { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, alignItems: 'center' },
   freqChipText:     { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
+  subPickerRow:     { flexDirection: 'row' as const, gap: 6, alignItems: 'center' as const, flexWrap: 'wrap' as const },
+  subPickerChip:    { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: 1, alignItems: 'center' as const },
+  subPickerChipText: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
+  subPickerLabel:   { fontSize: FS.caption, lineHeight: LH.caption },
 
   publicRow:        { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, padding: 14, borderWidth: 1 },
   publicLabel:      { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.semibold },

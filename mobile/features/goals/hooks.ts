@@ -109,12 +109,23 @@ export function useToggleMilestone(goalId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (ms: Milestone) => toggleMilestoneApi(ms, goalId),
-    onSuccess: () => {
+    onMutate: async (ms: Milestone) => {
+      await qc.cancelQueries({ queryKey: milestoneKeys.goal(goalId) });
+      const previous = qc.getQueryData<Milestone[]>(milestoneKeys.goal(goalId));
+      qc.setQueryData<Milestone[]>(milestoneKeys.goal(goalId), (old) =>
+        old?.map((m) => m.id === ms.id ? { ...m, is_done_this_period: !m.is_done_this_period } : m)
+      );
+      return { previous };
+    },
+    onError: (_e, _ms, ctx) => {
+      if (ctx?.previous) qc.setQueryData(milestoneKeys.goal(goalId), ctx.previous);
+      Alert.alert('Error', _e.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: milestoneKeys.goal(goalId) });
       qc.invalidateQueries({ queryKey: milestoneKeys.me() });
       qc.invalidateQueries({ queryKey: milestoneKeys.feed() });
     },
-    onError: (e: Error) => Alert.alert('Error', e.message),
   });
 }
 
@@ -122,11 +133,22 @@ export function useToggleMyMilestone() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (ms: Milestone) => toggleMilestoneApi(ms, ms.goal_id),
-    onSuccess: () => {
+    onMutate: async (ms: Milestone) => {
+      await qc.cancelQueries({ queryKey: milestoneKeys.me() });
+      const previous = qc.getQueryData<Milestone[]>(milestoneKeys.me());
+      qc.setQueryData<Milestone[]>(milestoneKeys.me(), (old) =>
+        old?.map((m) => m.id === ms.id ? { ...m, is_done_this_period: !m.is_done_this_period } : m)
+      );
+      return { previous };
+    },
+    onError: (_e, _ms, ctx) => {
+      if (ctx?.previous) qc.setQueryData(milestoneKeys.me(), ctx.previous);
+      Alert.alert('Error', _e.message);
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: milestoneKeys.me() });
       qc.invalidateQueries({ queryKey: milestoneKeys.feed() });
     },
-    onError: (e: Error) => Alert.alert('Error', e.message),
   });
 }
 

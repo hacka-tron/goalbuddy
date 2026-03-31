@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform, Modal,
   ScrollView, Pressable,
 } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import { FlashList, FlashListRef } from '@shopify/flash-list';
 import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -17,14 +18,40 @@ import { MessageBubble } from '../components/MessageBubble';
 import { ChatInput } from '../components/ChatInput';
 import { useConnection, useCheckIns, useSendMessage, useGoalStats } from '../hooks';
 import { CheckIn, DeadlineWarning } from '../types';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { ScreenState } from '../../../components/ui/ScreenState';
 
 type MCIName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+type TimestampItem = { type: 'timestamp'; key: string; label: string };
+type ChatItem = CheckIn | TimestampItem;
 
-function isSameGroup(prev: CheckIn, curr: CheckIn): boolean {
-  if (prev.author_id !== curr.author_id) return false;
-  const diffMs = Math.abs(new Date(prev.created_at).getTime() - new Date(curr.created_at).getTime());
-  return diffMs < 2 * 60 * 1000;
+function isSameGroup(a: CheckIn, b: CheckIn): boolean {
+  if (a.author_id !== b.author_id) return false;
+  return Math.abs(new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) < 2 * 60 * 1000;
 }
+
+function formatTimestamp(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  if (diffDays === 0) return time;
+  if (diffDays === 1) return `Yesterday ${time}`;
+  if (diffDays < 7) return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${time}`;
+}
+
+function TimestampLabel({ label, colors }: { label: string; colors: any }) {
+  return (
+    <View style={tsLabelStyles.container}>
+      <Text style={[tsLabelStyles.text, { color: colors.textSecondary }]}>{label}</Text>
+    </View>
+  );
+}
+const tsLabelStyles = StyleSheet.create({
+  container: { alignItems: 'center', marginVertical: 8 },
+  text: { fontSize: 11, lineHeight: 16 },
+});
 
 // ---------------------------------------------------------------------------
 // DeadlineWarningCard
@@ -218,6 +245,10 @@ export default function ChatScreen() {
   const [message, setMessage] = useState('');
   const [sendError, setSendError] = useState(false);
   const [statsVisible, setStatsVisible] = useState(false);
+  const flashListRef = useRef<FlashListRef<ChatItem>>(null);
+  const isAtBottomRef = useRef(true);
+  const prevLengthRef = useRef(0);
+  const loadingOlderRef = useRef(false);
 
   const { data: conn, isLoading: connLoading, isError: connError, refetch: refetchConn } = useConnection(id ?? '');
 
@@ -228,21 +259,67 @@ export default function ChatScreen() {
     isFetchingNextPage,
   } = useCheckIns(id ?? '');
 
+  // Server returns DESC (newest first). Reverse to get oldest→newest for display.
   const checkIns: CheckIn[] = useMemo(
-    () => data?.pages.flatMap((p) => p.messages) ?? [],
+    () => [...(data?.pages.flatMap((p) => p.messages) ?? [])].reverse(),
     [data]
   );
 
-  const newestId = checkIns[0]?.id ?? null;
+  // Inject timestamp separators for gaps > 1 hour
+  const chatItems = useMemo<ChatItem[]>(() => {
+    if (checkIns.length === 0) return [];
+    const result: ChatItem[] = [];
+    let prev: CheckIn | null = null;
+    for (const msg of checkIns) {
+      const gap = prev
+        ? new Date(msg.created_at).getTime() - new Date(prev.created_at).getTime()
+        : Infinity;
+      if (gap > 60 * 60 * 1000) {
+        result.push({ type: 'timestamp', key: `ts-${msg.id}`, label: formatTimestamp(msg.created_at) });
+      }
+      result.push(msg);
+      prev = msg;
+    }
+    return result;
+  }, [checkIns]);
+
+  // markRead with newest = last item (reversed array)
+  const newestMsg = checkIns[checkIns.length - 1];
   useEffect(() => {
-    if (!id || !checkIns[0]?.created_at) return;
-    markRead(id, checkIns[0].created_at);
-  }, [id, newestId, markRead, checkIns]);
+    if (!id || !newestMsg?.created_at) return;
+    markRead(id, newestMsg.created_at);
+  }, [id, newestMsg?.id, markRead]);
+
+  // Scroll to bottom on initial load and when new messages arrive while at bottom
+  useEffect(() => {
+    if (checkIns.length === 0) return;
+    if (prevLengthRef.current === 0) {
+      // First load: jump to bottom
+      setTimeout(() => flashListRef.current?.scrollToEnd({ animated: false }), 80);
+    } else if (checkIns.length > prevLengthRef.current && isAtBottomRef.current) {
+      // New messages from polling while user is at bottom
+      flashListRef.current?.scrollToEnd({ animated: true });
+    }
+    prevLengthRef.current = checkIns.length;
+  }, [checkIns.length]);
+
+  const handleScroll = useCallback(({ nativeEvent }: any) => {
+    const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+    const distFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    isAtBottomRef.current = distFromBottom < 80;
+
+    // Trigger pagination when user scrolls near top (older messages)
+    if (contentOffset.y < 100 && hasNextPage && !isFetchingNextPage && !loadingOlderRef.current) {
+      loadingOlderRef.current = true;
+      fetchNextPage().finally(() => { loadingOlderRef.current = false; });
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const { mutation: sendMutation } = useSendMessage(id ?? '', conn);
 
   const handleSend = useCallback(() => {
     if (!message.trim() || sendMutation.isPending) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const msg = message.trim();
     setMessage('');
     setSendError(false);
@@ -250,6 +327,7 @@ export default function ChatScreen() {
       onError: () => setSendError(true),
       onSuccess: () => setSendError(false),
     });
+    setTimeout(() => flashListRef.current?.scrollToEnd({ animated: true }), 50);
   }, [message, sendMutation]);
 
   const handleRetry = useCallback(() => {
@@ -261,27 +339,43 @@ export default function ChatScreen() {
     });
   }, [message, sendMutation]);
 
-  const renderItem = useCallback(({ item, index }: { item: CheckIn; index: number }) => {
+  const renderItem = useCallback(({ item, index }: { item: ChatItem; index: number }) => {
+    if ('type' in item) {
+      return <TimestampLabel label={item.label} colors={colors} />;
+    }
     if (!conn) return null;
     const isMe = item.author_id !== conn.buddy_id;
-    const nextItem = checkIns[index + 1];
-    const isFirstInGroup = !nextItem || !isSameGroup(item, nextItem);
-
     return (
       <MessageBubble
         item={item}
         isMe={isMe}
-        isFirstInGroup={isFirstInGroup}
+        isFirstInGroup={false}
         colors={colors}
         onRetry={handleRetry}
       />
     );
-  }, [conn, checkIns, colors, handleRetry]);
+  }, [conn, colors, handleRetry]);
 
   if (connLoading || (!conn && !connError)) {
     return (
       <SafeAreaView style={s.container} edges={['top']}>
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primary} />
+          </TouchableOpacity>
+          <View style={s.headerCenter}>
+            <Skeleton width={36} height={36} borderRadius={18} />
+            <View style={s.headerTitles}>
+              <Skeleton width={120} height={16} />
+              <Skeleton width={160} height={12} style={{ marginTop: 5 }} />
+            </View>
+          </View>
+        </View>
+        <View style={{ flex: 1, padding: 20, justifyContent: 'flex-end' }}>
+          <Skeleton width="70%" height={40} borderRadius={18} style={{ alignSelf: 'flex-start', marginBottom: 16 }} />
+          <Skeleton width="60%" height={40} borderRadius={18} style={{ alignSelf: 'flex-end', marginBottom: 16 }} />
+          <Skeleton width="80%" height={40} borderRadius={18} style={{ alignSelf: 'flex-start', marginBottom: 16 }} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -294,13 +388,12 @@ export default function ChatScreen() {
             <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primary} />
           </TouchableOpacity>
         </View>
-        <View style={s.errorState}>
-          <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
-          <Text style={s.errorText}>Couldn't load this chat. Check your connection.</Text>
-          <TouchableOpacity onPress={() => refetchConn()} style={s.retryBtn}>
-            <Text style={s.retryText}>Try again</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenState
+          type="error"
+          title="Couldn't load chat"
+          message="Check your connection and try again."
+          onRetry={refetchConn}
+        />
       </SafeAreaView>
     );
   }
@@ -313,25 +406,34 @@ export default function ChatScreen() {
     <SafeAreaView style={s.container} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color={colors.primary} />
+          <MaterialCommunityIcons name="arrow-left" size={22} color={colors.text} />
         </TouchableOpacity>
-        <View style={s.headerTitles}>
-          <Text style={s.headerName}>{conn.buddy_name}</Text>
-          <View style={s.headerGoalRow}>
-            {cat && <MaterialCommunityIcons name={cat.icon as MCIName} size={13} color={colors.textSecondary} />}
-            <Text style={s.headerGoal} numberOfLines={1}>{conn.goal_title}</Text>
+        <View style={s.headerCenter}>
+          <View style={[s.avatarCircle, { backgroundColor: colors.primary + '20' }]}>
+            <Text style={[s.avatarInitial, { color: colors.primary }]}>
+              {conn.buddy_name.charAt(0).toUpperCase()}
+            </Text>
+          </View>
+          <View style={s.headerTitles}>
+            <Text style={s.headerName}>{conn.buddy_name}</Text>
+            <View style={s.headerGoalRow}>
+              {cat && <MaterialCommunityIcons name={cat.icon as MCIName} size={11} color={colors.textSecondary} />}
+              <Text style={s.headerGoal} numberOfLines={1}>{conn.goal_title}</Text>
+            </View>
           </View>
         </View>
-        <ActivityBadge level={conn.activity_level} small />
-        {isBuddyView && (
-          <TouchableOpacity
-            onPress={() => setStatsVisible(true)}
-            style={s.statsBtn}
-            accessibilityLabel="View goal stats"
-          >
-            <MaterialCommunityIcons name="chart-bar" size={20} color={colors.primary} />
-          </TouchableOpacity>
-        )}
+        <View style={s.headerRight}>
+          <ActivityBadge level={conn.activity_level} small />
+          {isBuddyView && (
+            <TouchableOpacity
+              onPress={() => setStatsVisible(true)}
+              style={s.statsBtn}
+              accessibilityLabel="View goal stats"
+            >
+              <MaterialCommunityIcons name="chart-bar" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {conn.overdue_count > 0 && (
@@ -367,22 +469,19 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <FlashList
-          data={checkIns}
-          keyExtractor={(item) => item.id}
+          ref={flashListRef}
+          data={chatItems}
+          keyExtractor={(item) => ('type' in item ? item.key : item.id)}
           renderItem={renderItem}
-          estimatedItemSize={80}
-          contentContainerStyle={[s.feedContent, checkIns.length === 0 && s.feedContentEmpty]}
-          inverted
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
-          }}
-          onEndReachedThreshold={0.3}
-          ListFooterComponent={() => (
-            isFetchingNextPage
-              ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
-              : null
-          )}
-          ListEmptyComponent={() => (
+          getItemType={(item) => ('type' in item ? 'timestamp' : 'message')}
+          contentContainerStyle={s.feedContent}
+          onScroll={handleScroll}
+          scrollEventThrottle={100}
+          maintainVisibleContentPosition={{ disabled: false }}
+          ListHeaderComponent={isFetchingNextPage ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
+          ) : null}
+          ListEmptyComponent={(
             <View style={s.emptyFeed}>
               <Text style={s.emptyFeedText}>No check-ins yet. Say hello!</Text>
             </View>
@@ -416,21 +515,24 @@ export default function ChatScreen() {
 
 const makeStyles = (colors: any) => StyleSheet.create({
   container:     { flex: 1, backgroundColor: colors.background },
-  header:        { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
-  backBtn:       { padding: 4 },
+  header:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 10, gap: 8, backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.border },
+  backBtn:       { padding: 6 },
+  headerCenter:  { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatarCircle:  { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  avatarInitial: { fontSize: FS.body, fontWeight: FW.bold },
   headerTitles:  { flex: 1 },
   headerName:    { fontSize: FS.body, lineHeight: LH.body, fontWeight: FW.bold, color: colors.text },
-  headerGoalRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
-  headerGoal:    { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, flex: 1 },
+  headerGoalRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },
+  headerGoal:    { fontSize: FS.caption, lineHeight: LH.caption, color: colors.textSecondary, flex: 1 },
+  headerRight:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
   statsBtn:      { padding: 6 },
   overdueBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF6B6B12', borderBottomWidth: 1, borderBottomColor: '#FF6B6B30', paddingHorizontal: 16, paddingVertical: 10 },
   overdueBannerText: { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, color: '#FF6B6B', fontWeight: FW.medium },
   lateBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F59E0B12', borderBottomWidth: 1, borderBottomColor: '#F59E0B30', paddingHorizontal: 16, paddingVertical: 10 },
   lateBannerText: { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, color: '#F59E0B', fontWeight: FW.medium },
   warningCardsContainer: { paddingTop: 10, paddingBottom: 4 },
-  feedContent:   { paddingVertical: 12, paddingHorizontal: 16, gap: 6 },
-  feedContentEmpty: { flex: 1, justifyContent: 'center' },
-  emptyFeed:     { alignItems: 'center', paddingTop: 60 },
+  feedContent:   { paddingVertical: 12, paddingHorizontal: 16 },
+  emptyFeed:     { alignItems: 'center', paddingTop: 80 },
   emptyFeedText: { color: colors.textSecondary },
   errorState:    { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errorText:     { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, textAlign: 'center' },

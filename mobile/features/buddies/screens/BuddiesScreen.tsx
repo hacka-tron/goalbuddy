@@ -13,6 +13,8 @@ import { useNotificationStore, BuddyTabKey } from '../../../store/notificationSt
 import { useBuddies } from '../hooks';
 import { BuddyCard } from '../components/BuddyCard';
 import { Connection, BuddyGroup, TabKey } from '../types';
+import { CardSkeleton } from '../../../components/ui/Skeleton';
+import { ScreenState } from '../../../components/ui/ScreenState';
 
 function groupByBuddy(connections: Connection[]): BuddyGroup[] {
   const map = new Map<string, BuddyGroup>();
@@ -141,13 +143,12 @@ export default function BuddiesScreen() {
       <View style={s.headerRow}>
         <Text style={s.title}>Buddies</Text>
       </View>
-      <View style={s.errorState}>
-        <MaterialCommunityIcons name="wifi-off" size={40} color={colors.border} />
-        <Text style={s.errorText}>Couldn't load buddies. Check your connection.</Text>
-        <TouchableOpacity onPress={() => refetch()} style={s.retryBtn}>
-          <Text style={s.retryBtnText}>Try again</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenState
+        type="error"
+        title="Couldn't load buddies"
+        message="Check your connection and try again."
+        onRetry={refetch}
+      />
     </SafeAreaView>
   );
 
@@ -188,14 +189,16 @@ export default function BuddiesScreen() {
       </View>
 
       <FlashList
-        data={buddyGroups}
-        renderItem={({ item }) => <BuddyCard group={item} />}
-        estimatedItemSize={100}
+        data={isLoading && !manualRefreshing ? ([1, 2, 3] as any) : buddyGroups}
+        renderItem={({ item }) => (
+          isLoading && !manualRefreshing 
+            ? <CardSkeleton height={80} />
+            : <BuddyCard group={item as BuddyGroup} />
+        )}
         contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
         ListHeaderComponent={() => (
           <>
-            {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
             {activeTab === 'my_goals' && !isLoading && (
               <TouchableOpacity style={[s.goalsLink, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.navigate({ pathname: '/(tabs)/goals', params: { tab: 'goals' } })} activeOpacity={0.7}>
                 <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={16} color={colors.primary} />
@@ -208,11 +211,12 @@ export default function BuddiesScreen() {
         )}
         ListEmptyComponent={() => (
           !isLoading ? (
-            <View style={s.empty}>
-              <MaterialCommunityIcons name="account-group-outline" size={52} color={colors.border} />
-              <Text style={s.emptyTitle}>{emptyMessages[activeTab].title}</Text>
-              <Text style={s.emptyText}>{emptyMessages[activeTab].body}</Text>
-            </View>
+            <ScreenState
+              type="empty"
+              title={emptyMessages[activeTab].title}
+              message={emptyMessages[activeTab].body}
+              icon="account-group-outline"
+            />
           ) : null
         )}
       />

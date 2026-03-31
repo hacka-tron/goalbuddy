@@ -36,7 +36,7 @@ export function useGoalStats(connectionId: string, enabled: boolean) {
 export function useCheckIns(connectionId: string) {
   return useInfiniteQuery<CheckInsPage>({
     queryKey: chatKeys.checkins(connectionId),
-    queryFn: ({ pageParam }: { pageParam?: string }) =>
+    queryFn: ({ pageParam }) =>
       fetchCheckIns(connectionId, pageParam as string | undefined),
     getNextPageParam: (lastPage: CheckInsPage) =>
       lastPage.hasMore ? lastPage.nextCursor ?? undefined : undefined,
