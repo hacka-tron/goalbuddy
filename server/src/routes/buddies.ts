@@ -1,6 +1,8 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { query } from '../db';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
@@ -37,22 +39,18 @@ function computeDeadlineWarnings(milestones: MilestoneRow[]): DeadlineWarning[] 
     if (m.frequency === 'once') {
       if (!m.due_date || m.completed_at) continue;
       deadline = new Date(m.due_date);
-      // end of that day (23:59:59 UTC)
       deadline.setUTCHours(23, 59, 59, 999);
       const created = new Date(m.created_at);
       const total = deadline.getTime() - created.getTime();
       if (total <= 0) continue;
       percentElapsed = Math.min(100, ((now.getTime() - created.getTime()) / total) * 100);
     } else if (m.frequency === 'daily') {
-      // deadline = end of today UTC
       deadline = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
       percentElapsed = (now.getUTCHours() * 60 + now.getUTCMinutes()) / (24 * 60) * 100;
     } else if (m.frequency === 'weekly') {
-      // deadline = end of Sunday (day 0) of current week
-      const dayOfWeek = now.getUTCDay(); // 0=Sun ... 6=Sat
+      const dayOfWeek = now.getUTCDay();
       const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
       deadline = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + daysUntilSunday, 23, 59, 59, 999));
-      // Monday = start of week (day 1); elapsed = how many days since Monday
       const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
       percentElapsed = (daysSinceMonday * 24 * 60 + now.getUTCHours() * 60 + now.getUTCMinutes()) / (7 * 24 * 60) * 100;
     } else if (m.frequency === 'monthly') {
@@ -60,14 +58,14 @@ function computeDeadlineWarnings(milestones: MilestoneRow[]): DeadlineWarning[] 
       const month = now.getUTCMonth();
       const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
       deadline = new Date(Date.UTC(year, month, daysInMonth, 23, 59, 59, 999));
-      const dayOfMonth = now.getUTCDate(); // 1-based
+      const dayOfMonth = now.getUTCDate();
       percentElapsed = ((dayOfMonth - 1) * 24 * 60 + now.getUTCHours() * 60 + now.getUTCMinutes()) / (daysInMonth * 24 * 60) * 100;
     } else {
       continue;
     }
 
     if (percentElapsed < 75) continue;
-    if (now >= deadline) continue; // already past deadline — overdue, not a warning
+    if (now >= deadline) continue;
 
     const hoursRemaining = Math.max(0, (deadline.getTime() - now.getTime()) / 3600000);
 
@@ -94,9 +92,33 @@ async function fetchDeadlineWarningsForGoal(goalId: string, buddyUserId: string)
   return computeDeadlineWarnings(msResult.rows as MilestoneRow[]);
 }
 
-// ---------------------------------------------------------------------------
+// ─── Validation Schemas ─────────────────────────────────────
+
+const requestBuddySchema = z.object({
+  body: z.object({
+    goalId: z.string().uuid(),
+    coopJoin: z.boolean().optional(),
+  }),
+});
+
+const patchConnectionSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+  body: z.object({
+    status: z.enum(['accepted', 'declined']),
+  }),
+});
+
+const connectionIdSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+});
+
+// ─── Routes ─────────────────────────────────────────────────
+
 // GET /buddies  — all my connections (pending + accepted)
-// ---------------------------------------------------------------------------
 router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await query(
@@ -179,8 +201,6 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
       [req.userId]
     );
 
-    // Attach deadline_warnings for connections where the current user is the buddy/coach
-    // (i.e. is_my_goal = false — they're watching someone else's goal)
     const rows = await Promise.all(
       result.rows.map(async (row: any) => {
         if (!row.is_my_goal) {
@@ -193,30 +213,56 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
     );
 
     res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    console.error(err); 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // POST /buddies/request
-router.post('/request', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/request', requireAuth, validate(requestBuddySchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { goalId, coopJoin } = req.body;
-  if (!goalId) { res.status(400).json({ error: 'goalId required' }); return; }
   try {
     const goalRes = await query(
       `SELECT user_id, coop_open, title, category, description FROM goals WHERE id = $1 AND is_public = TRUE AND status = 'active'`,
       [goalId]
     );
-    if (!goalRes.rows[0]) { res.status(404).json({ error: 'Goal not found' }); return; }
+    if (!goalRes.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Goal not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     const { user_id: receiverId, coop_open, title, category, description } = goalRes.rows[0];
     const connType = coopJoin ? 'coop' : (coop_open ? 'coop' : 'accountability');
-    if (receiverId === req.userId) { res.status(400).json({ error: 'Cannot request yourself' }); return; }
+    if (receiverId === req.userId) { 
+      res.status(400).json({ 
+        error: 'Cannot request yourself',
+        code: 'BAD_REQUEST',
+        retryable: false
+      }); 
+      return; 
+    }
 
     const existing = await query(
       `SELECT status FROM buddy_connections WHERE goal_id = $1 AND status = 'accepted'`,
       [goalId]
     );
-    if (existing.rows.length > 0) { res.status(409).json({ error: 'Goal already has a buddy' }); return; }
+    if (existing.rows.length > 0) { 
+      res.status(409).json({ 
+        error: 'Goal already has a buddy',
+        code: 'CONFLICT',
+        retryable: false
+      }); 
+      return; 
+    }
 
-    // For co-op joins: copy the goal into the requester's account
     let requesterGoalId: string | null = null;
     if (coopJoin) {
       const copyGoal = await query(
@@ -225,7 +271,6 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response): Pr
         [req.userId, title, category, description]
       );
       requesterGoalId = copyGoal.rows[0].id;
-      // Copy milestones
       const msCopy = await query(
         `SELECT title, description, frequency FROM milestones WHERE goal_id = $1`,
         [goalId]
@@ -246,12 +291,18 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response): Pr
       [req.userId, receiverId, goalId, connType, requesterGoalId]
     );
     res.status(201).json({ connection: result.rows[0], newGoalId: requesterGoalId });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    console.error(err); 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
-// GET /buddies/:id/goal-stats  — coaching stats for the goal owner's milestones
-// Must be registered BEFORE /:id to avoid routing collision
-router.get('/:id/goal-stats', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+// GET /buddies/:id/goal-stats
+router.get('/:id/goal-stats', requireAuth, validate(connectionIdSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const connResult = await query(
       `SELECT bc.id, bc.goal_id, bc.requester_id, bc.receiver_id,
@@ -265,14 +316,18 @@ router.get('/:id/goal-stats', requireAuth, async (req: AuthRequest, res: Respons
          AND bc.status = 'accepted'`,
       [req.userId, req.params.id]
     );
-    if (!connResult.rows[0]) { res.status(404).json({ error: 'Connection not found' }); return; }
+    if (!connResult.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Connection not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     const conn = connResult.rows[0];
-
-    // The goal owner is the buddy (the person whose goal it is)
     const goalOwnerId = conn.buddy_id;
     const goalId = conn.goal_id;
 
-    // Fetch recurring milestones for the goal owner
     const msResult = await query(
       `SELECT m.id, m.title, m.frequency, m.created_at::date AS created_date
        FROM milestones m
@@ -317,7 +372,6 @@ router.get('/:id/goal-stats', requireAuth, async (req: AuthRequest, res: Respons
       const now = new Date(); now.setHours(0, 0, 0, 0);
       const created = new Date(ms.created_date); created.setHours(0, 0, 0, 0);
 
-      // Streak
       let startDate = new Date(now);
       if (!logSet.has(getPeriodKey(now, ms.frequency))) startDate = prevPeriod(now, ms.frequency);
       let streak = 0;
@@ -327,7 +381,6 @@ router.get('/:id/goal-stats', requireAuth, async (req: AuthRequest, res: Respons
         checkDate = prevPeriod(checkDate, ms.frequency);
       }
 
-      // Total expected
       const lastCompletedPeriod = prevPeriod(now, ms.frequency);
       let totalExpected = 0;
       if (ms.frequency === 'daily') {
@@ -367,11 +420,18 @@ router.get('/:id/goal-stats', requireAuth, async (req: AuthRequest, res: Respons
       overall_completion_rate: Math.round(overallCompletionRate * 1000) / 1000,
       overall_skip_rate: Math.round((1 - overallCompletionRate) * 1000) / 1000,
     });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    console.error(err); 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // GET /buddies/:id  — single connection detail
-router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id', requireAuth, validate(connectionIdSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await query(
       `SELECT
@@ -412,10 +472,16 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
          AND (bc.requester_id = $1 OR bc.receiver_id = $1)`,
       [req.userId, req.params.id]
     );
-    if (!result.rows[0]) { res.status(404).json({ error: 'Connection not found' }); return; }
+    if (!result.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Connection not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
 
     const row = result.rows[0];
-    // Attach deadline_warnings when the caller is the buddy/coach (not the goal owner)
     if (!row.is_my_goal) {
       row.deadline_warnings = await fetchDeadlineWarningsForGoal(row.goal_id, row.buddy_id);
     } else {
@@ -423,16 +489,19 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
     }
 
     res.json(row);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    console.error(err); 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // PATCH /buddies/:id  — accept or decline
-router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/:id', requireAuth, validate(patchConnectionSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { status } = req.body;
-  if (!['accepted', 'declined'].includes(status)) {
-    res.status(400).json({ error: 'status must be accepted or declined' });
-    return;
-  }
   try {
     const result = await query(
       `UPDATE buddy_connections SET
@@ -450,14 +519,29 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promi
        RETURNING *`,
       [status, req.params.id, req.userId]
     );
-    if (!result.rows[0]) { res.status(404).json({ error: 'Connection not found' }); return; }
+    if (!result.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Connection not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     res.json(result.rows[0]);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Server error';
     if (msg.includes('already has an accepted buddy')) {
-      res.status(409).json({ error: 'This goal already has an accepted buddy' });
+      res.status(409).json({ 
+        error: 'This goal already has an accepted buddy',
+        code: 'CONFLICT',
+        retryable: false
+      });
     } else {
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ 
+        error: 'Server error',
+        code: 'SERVER_ERROR',
+        retryable: true
+      });
     }
   }
 });

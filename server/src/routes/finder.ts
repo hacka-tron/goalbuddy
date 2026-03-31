@@ -1,28 +1,56 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { query } from '../db';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
-// GET /finder/deck?goalId=xxx
-router.get('/deck', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
-  const { goalId } = req.query as { goalId?: string };
+// ─── Validation Schemas ─────────────────────────────────────
 
-  if (!goalId) {
-    res.status(400).json({ error: 'goalId required' });
-    return;
-  }
+const deckSchema = z.object({
+  query: z.object({
+    goalId: z.string().uuid(),
+  }),
+});
+
+const swipeSchema = z.object({
+  body: z.object({
+    swipedId: z.string().uuid(),
+    action: z.enum(['like', 'pass']),
+    goalId: z.string().uuid(),
+    cardGoalId: z.string().uuid().optional(),
+  }),
+});
+
+// ─── Routes ─────────────────────────────────────────────────
+
+// GET /finder/deck?goalId=xxx
+router.get('/deck', requireAuth, validate(deckSchema), async (req: AuthRequest, res: Response): Promise<void> => {
+  const { goalId } = req.query as { goalId: string };
 
   try {
     const goalCheck = await query('SELECT id FROM goals WHERE id = $1 AND user_id = $2', [goalId, req.userId]);
-    if (!goalCheck.rows[0]) { res.status(404).json({ error: 'Goal not found' }); return; }
+    if (!goalCheck.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Goal not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
 
     const buddyCheck = await query(
       `SELECT id FROM buddy_connections WHERE goal_id = $1 AND status = 'accepted'`,
       [goalId]
     );
     if (buddyCheck.rows[0]) {
-      res.status(409).json({ error: 'This goal already has a buddy', locked: true });
+      res.status(409).json({ 
+        error: 'This goal already has a buddy', 
+        code: 'CONFLICT',
+        retryable: false,
+        locked: true 
+      });
       return;
     }
 
@@ -67,17 +95,17 @@ router.get('/deck', requireAuth, async (req: AuthRequest, res: Response): Promis
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    });
   }
 });
 
 // POST /finder/swipe
-router.post('/swipe', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/swipe', requireAuth, validate(swipeSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { swipedId, action, goalId, cardGoalId } = req.body;
-  if (!swipedId || !action || !goalId) {
-    res.status(400).json({ error: 'swipedId, action, and goalId required' });
-    return;
-  }
 
   try {
     // Persist swipe to DB
@@ -94,7 +122,7 @@ router.post('/swipe', requireAuth, async (req: AuthRequest, res: Response): Prom
     let connection = null;
 
     if (action === 'like') {
-      // Auto-swipe back for @test.com users (using cardGoalId as their goal)
+      // Auto-swipe back for @test.com users
       const userCheck = await query(`SELECT email FROM users WHERE id = $1`, [swipedId]);
       const swipedEmail: string = userCheck.rows[0]?.email || '';
       if (swipedEmail.includes('@test.com') && cardGoalId) {
@@ -108,7 +136,7 @@ router.post('/swipe', requireAuth, async (req: AuthRequest, res: Response): Prom
         );
       }
 
-      // Check for mutual like — did the other user already like us?
+      // Check for mutual like
       const reverseSwipe = await query(
         `SELECT goal_id FROM swipe_actions
          WHERE swiper_id = $1 AND swiped_id = $2 AND action = 'like'
@@ -135,7 +163,11 @@ router.post('/swipe', requireAuth, async (req: AuthRequest, res: Response): Prom
     res.json({ success: true, matched, connection });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    });
   }
 });
 

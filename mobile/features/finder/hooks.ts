@@ -1,17 +1,28 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchMyGoals, fetchDeck, swipe } from './api';
 import { Goal, Candidate } from './types';
+import { goalKeys } from '../goals/hooks';
+import { buddyKeys } from '../buddies/hooks';
+
+// ─── Query Key Factories ────────────────────────────────────
+
+export const finderKeys = {
+  all: ['finder'] as const,
+  deck: (goalId: string | null) => [...finderKeys.all, 'deck', goalId] as const,
+};
+
+// ─── Hooks ──────────────────────────────────────────────────
 
 export function useMyGoals() {
   return useQuery<Goal[]>({
-    queryKey: ['goals'],
+    queryKey: goalKeys.all,
     queryFn: fetchMyGoals,
   });
 }
 
 export function useDeck(selectedGoalId: string | null) {
   const result = useQuery({
-    queryKey: ['deck', selectedGoalId],
+    queryKey: finderKeys.deck(selectedGoalId),
     queryFn: () => fetchDeck(selectedGoalId!),
     enabled: !!selectedGoalId,
     staleTime: 0,
@@ -40,8 +51,8 @@ export function useSwipe(
       if (data.matched) onMatch(deck[deckIndex]);
       onAdvance();
       resetPosition();
-      qc.invalidateQueries({ queryKey: ['buddies'] });
-      qc.invalidateQueries({ queryKey: ['deck', selectedGoalId] });
+      qc.invalidateQueries({ queryKey: buddyKeys.all });
+      qc.invalidateQueries({ queryKey: finderKeys.deck(selectedGoalId) });
     },
   });
 }

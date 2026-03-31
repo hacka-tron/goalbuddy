@@ -1,12 +1,37 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { query } from '../db';
+import { validate } from '../middleware/validate';
 import { getIO } from '../socket';
 
 const router = Router();
 
+// ─── Validation Schemas ─────────────────────────────────────
+
+const getCheckinsSchema = z.object({
+  params: z.object({
+    connectionId: z.string().uuid(),
+  }),
+  query: z.object({
+    before: z.string().optional(),
+    limit: z.string().regex(/^\d+$/).optional(),
+  }),
+});
+
+const createCheckinSchema = z.object({
+  body: z.object({
+    connectionId: z.string().uuid(),
+    message: z.string().min(1),
+    mood: z.string().min(1),
+    milestoneId: z.string().uuid().optional().nullable(),
+  }),
+});
+
+// ─── Routes ─────────────────────────────────────────────────
+
 // GET /checkins/:connectionId
-router.get('/:connectionId', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:connectionId', requireAuth, validate(getCheckinsSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     // Verify user is part of this connection
     const connCheck = await query(
@@ -14,7 +39,14 @@ router.get('/:connectionId', requireAuth, async (req: AuthRequest, res: Response
        WHERE id = $1 AND (requester_id = $2 OR receiver_id = $2)`,
       [req.params.connectionId, req.userId]
     );
-    if (!connCheck.rows[0]) { res.status(403).json({ error: 'Forbidden' }); return; }
+    if (!connCheck.rows[0]) { 
+      res.status(403).json({ 
+        error: 'Forbidden',
+        code: 'FORBIDDEN',
+        retryable: false
+      }); 
+      return; 
+    }
 
     const before = req.query.before as string | undefined;
     const limit = Math.min(parseInt((req.query.limit as string) || '20', 10), 100);
@@ -48,16 +80,18 @@ router.get('/:connectionId', requireAuth, async (req: AuthRequest, res: Response
       : null;
 
     res.json({ messages, hasMore, nextCursor });
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // POST /checkins
-router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', requireAuth, validate(createCheckinSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { connectionId, message, mood, milestoneId } = req.body;
-  if (!connectionId || !message || !mood) {
-    res.status(400).json({ error: 'connectionId, message, and mood required' });
-    return;
-  }
   try {
     // Verify user is part of this connection
     const connCheck = await query(
@@ -65,7 +99,14 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
        WHERE id = $1 AND (requester_id = $2 OR receiver_id = $2) AND status = 'accepted'`,
       [connectionId, req.userId]
     );
-    if (!connCheck.rows[0]) { res.status(403).json({ error: 'Forbidden' }); return; }
+    if (!connCheck.rows[0]) { 
+      res.status(403).json({ 
+        error: 'Forbidden',
+        code: 'FORBIDDEN',
+        retryable: false
+      }); 
+      return; 
+    }
 
     const result = await query(
       `INSERT INTO check_ins (connection_id, author_id, message, mood, milestone_id)
@@ -83,7 +124,13 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
     io.to(`connection:${connectionId}`).emit('new_checkin', fullCheckIn);
 
     res.status(201).json(fullCheckIn);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 export default router;

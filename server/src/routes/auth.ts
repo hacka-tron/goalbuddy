@@ -3,7 +3,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { z } from 'zod';
 import { query } from '../db';
+import { validate } from '../middleware/validate';
 
 const router = Router();
 
@@ -11,6 +13,24 @@ const signToken = (userId: string) =>
   jwt.sign({ userId }, process.env.JWT_SECRET!, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   } as jwt.SignOptions);
+
+// ─── Validation Schemas ─────────────────────────────────────
+
+const registerSchema = z.object({
+  body: z.object({
+    email: z.string().email(),
+    password: z.string().min(6),
+    displayName: z.string().min(2),
+    username: z.string().min(3).max(30),
+  }),
+});
+
+const loginSchema = z.object({
+  body: z.object({
+    email: z.string().email(),
+    password: z.string(),
+  }),
+});
 
 // ─── Passport Google Strategy ───────────────────────────────
 passport.use(
@@ -58,16 +78,16 @@ passport.use(
 );
 
 // ─── Email / Password Register ───────────────────────────────
-router.post('/register', async (req: Request, res: Response): Promise<void> => {
+router.post('/register', validate(registerSchema), async (req: Request, res: Response): Promise<void> => {
   const { email, password, displayName, username } = req.body;
-  if (!email || !password || !displayName || !username) {
-    res.status(400).json({ error: 'All fields required' });
-    return;
-  }
   try {
     const existing = await query('SELECT id FROM users WHERE email = $1 OR username = $2', [email, username]);
     if (existing.rows.length > 0) {
-      res.status(409).json({ error: 'Email or username already taken' });
+      res.status(409).json({ 
+        error: 'Email or username already taken',
+        code: 'CONFLICT',
+        retryable: false
+      });
       return;
     }
     const hash = await bcrypt.hash(password, 12);
@@ -79,40 +99,59 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     const user = result.rows[0];
     res.status(201).json({ token: signToken(user.id), user });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    });
   }
 });
 
 // ─── Email / Password Login ───────────────────────────────────
-router.post('/login', async (req: Request, res: Response): Promise<void> => {
+router.post('/login', validate(loginSchema), async (req: Request, res: Response): Promise<void> => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    res.status(400).json({ error: 'Email and password required' });
-    return;
-  }
   try {
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
     if (!user || !user.password_hash) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ 
+        error: 'Invalid credentials',
+        code: 'UNAUTHORIZED',
+        retryable: false
+      });
       return;
     }
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ 
+        error: 'Invalid credentials',
+        code: 'UNAUTHORIZED',
+        retryable: false
+      });
       return;
     }
     const { password_hash: _, ...safeUser } = user;
     res.json({ token: signToken(user.id), user: safeUser });
   } catch {
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    });
   }
 });
 
 // ─── Google OAuth (mobile — authorization code + PKCE) ────────
 router.post('/google/token', async (req: Request, res: Response): Promise<void> => {
   const { code, codeVerifier, redirectUri } = req.body;
-  if (!code || !redirectUri) { res.status(400).json({ error: 'code and redirectUri required' }); return; }
+  if (!code || !redirectUri) { 
+    res.status(400).json({ 
+      error: 'code and redirectUri required',
+      code: 'BAD_REQUEST',
+      retryable: false
+    }); 
+    return; 
+  }
   try {
     // Exchange code for tokens
     const params: Record<string, string> = {
@@ -131,12 +170,24 @@ router.post('/google/token', async (req: Request, res: Response): Promise<void> 
     });
     const tokens = await tokenRes.json() as { access_token?: string; error?: string };
     if (!tokens.access_token) {
-      res.status(401).json({ error: tokens.error ?? 'Token exchange failed' }); return;
+      res.status(401).json({ 
+        error: tokens.error ?? 'Token exchange failed',
+        code: 'UNAUTHORIZED',
+        retryable: false
+      }); 
+      return;
     }
 
     // Get user info
     const googleRes = await fetch(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${tokens.access_token}`);
-    if (!googleRes.ok) { res.status(401).json({ error: 'Failed to get user info' }); return; }
+    if (!googleRes.ok) { 
+      res.status(401).json({ 
+        error: 'Failed to get user info',
+        code: 'UNAUTHORIZED',
+        retryable: false
+      }); 
+      return; 
+    }
     const profile = await googleRes.json() as { sub: string; email: string; name: string; picture?: string };
 
     // Find by google_id
@@ -160,7 +211,13 @@ router.post('/google/token', async (req: Request, res: Response): Promise<void> 
     );
     const { password_hash: _, ...safeUser } = newUser.rows[0];
     res.status(201).json({ token: signToken(newUser.rows[0].id), user: safeUser });
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // ─── Google OAuth (browser redirect flow) ─────────────────────

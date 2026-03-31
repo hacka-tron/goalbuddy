@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform, Modal,
   ScrollView, Pressable,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -100,9 +101,7 @@ function StatsModal({ connectionId, buddyName, visible, onClose, colors }: {
     >
       <Pressable style={s.overlay} onPress={onClose}>
         <Pressable style={s.sheet} onPress={(e) => e.stopPropagation()}>
-          {/* Handle */}
           <View style={s.handle} />
-
           <View style={s.sheetHeader}>
             <Text style={s.sheetTitle}>{buddyName}'s Progress</Text>
             <TouchableOpacity onPress={onClose} style={s.closeBtn} accessibilityLabel="Close stats">
@@ -129,7 +128,6 @@ function StatsModal({ connectionId, buddyName, visible, onClose, colors }: {
               contentContainerStyle={s.scrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* Overall summary */}
               <View style={s.summaryRow}>
                 <View style={s.summaryChip}>
                   <Text style={s.summaryChipValue}>{overallPct}%</Text>
@@ -184,7 +182,6 @@ const makeStatsModalStyles = (colors: any) => StyleSheet.create({
   closeBtn: { padding: 4 },
   scroll: { flexGrow: 0 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 16, gap: 12 },
-
   summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
   summaryChip: { flex: 1, backgroundColor: colors.primaryLight, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
   summaryChipSkip: { backgroundColor: '#FEF3C7' },
@@ -192,10 +189,8 @@ const makeStatsModalStyles = (colors: any) => StyleSheet.create({
   summaryChipValueSkip: { color: '#D97706' },
   summaryChipLabel: { fontSize: FS.caption, lineHeight: LH.caption, color: colors.primary, marginTop: 2 },
   summaryChipLabelSkip: { color: '#B45309' },
-
   emptyState: { alignItems: 'center', paddingVertical: 24 },
   emptyText: { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary },
-
   msRow: { backgroundColor: colors.background, borderRadius: 12, padding: 14, gap: 6 },
   msRowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   msTitle: { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold, color: colors.text },
@@ -205,7 +200,6 @@ const makeStatsModalStyles = (colors: any) => StyleSheet.create({
   msStatLabel: { fontSize: FS.caption, lineHeight: LH.caption, color: colors.textSecondary },
   msProgressTrack: { height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden' },
   msProgressFill: { height: 6, backgroundColor: colors.primary, borderRadius: 3 },
-
   errorState: { alignItems: 'center', paddingVertical: 32, gap: 12 },
   errorText: { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary },
   retryBtn: { backgroundColor: colors.primary, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 10 },
@@ -239,12 +233,11 @@ export default function ChatScreen() {
     [data]
   );
 
-  // Mark as read using the server timestamp of the newest message
   const newestId = checkIns[0]?.id ?? null;
   useEffect(() => {
-    if (!id) return;
-    markRead(id, checkIns[0]?.created_at);
-  }, [id, newestId]);
+    if (!id || !checkIns[0]?.created_at) return;
+    markRead(id, checkIns[0].created_at);
+  }, [id, newestId, markRead, checkIns]);
 
   const { mutation: sendMutation } = useSendMessage(id ?? '', conn);
 
@@ -313,7 +306,6 @@ export default function ChatScreen() {
   }
 
   const cat = GOAL_CATEGORIES.find((c) => c.key === conn.goal_category);
-  // Buddy/coach view: they are NOT the goal owner
   const isBuddyView = !conn.is_my_goal;
   const warnings = isBuddyView ? (conn.deadline_warnings ?? []) : [];
 
@@ -374,27 +366,27 @@ export default function ChatScreen() {
       )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <FlatList
+        <FlashList
           data={checkIns}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          style={s.feed}
+          estimatedItemSize={80}
           contentContainerStyle={[s.feedContent, checkIns.length === 0 && s.feedContentEmpty]}
           inverted
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}
           onEndReachedThreshold={0.3}
-          ListFooterComponent={
+          ListFooterComponent={() => (
             isFetchingNextPage
               ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
               : null
-          }
-          ListEmptyComponent={
+          )}
+          ListEmptyComponent={() => (
             <View style={s.emptyFeed}>
               <Text style={s.emptyFeedText}>No check-ins yet. Say hello!</Text>
             </View>
-          }
+          )}
         />
 
         <ChatInput
@@ -431,20 +423,15 @@ const makeStyles = (colors: any) => StyleSheet.create({
   headerGoalRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
   headerGoal:    { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, flex: 1 },
   statsBtn:      { padding: 6 },
-
   overdueBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF6B6B12', borderBottomWidth: 1, borderBottomColor: '#FF6B6B30', paddingHorizontal: 16, paddingVertical: 10 },
   overdueBannerText: { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, color: '#FF6B6B', fontWeight: FW.medium },
   lateBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F59E0B12', borderBottomWidth: 1, borderBottomColor: '#F59E0B30', paddingHorizontal: 16, paddingVertical: 10 },
   lateBannerText: { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, color: '#F59E0B', fontWeight: FW.medium },
   warningCardsContainer: { paddingTop: 10, paddingBottom: 4 },
-
-  feed:          { flex: 1 },
   feedContent:   { paddingVertical: 12, paddingHorizontal: 16, gap: 6 },
   feedContentEmpty: { flex: 1, justifyContent: 'center' },
-
   emptyFeed:     { alignItems: 'center', paddingTop: 60 },
   emptyFeedText: { color: colors.textSecondary },
-
   errorState:    { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errorText:     { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, textAlign: 'center' },
   retryBtn:      { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },

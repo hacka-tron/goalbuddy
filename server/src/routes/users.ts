@@ -1,8 +1,32 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { query } from '../db';
+import { validate } from '../middleware/validate';
 
 const router = Router();
+
+// ─── Validation Schemas ─────────────────────────────────────
+
+const updateUserSchema = z.object({
+  body: z.object({
+    displayName: z.string().min(2).optional(),
+    username: z.string().min(3).max(30).optional(),
+    bio: z.string().optional(),
+    theme: z.enum(['light', 'dark', 'system']).optional(),
+    notificationFrequency: z.enum(['instant', 'daily', 'weekly', 'none']).optional(),
+    pushToken: z.string().optional(),
+    avatarUrl: z.string().url().optional().or(z.literal('')),
+  }),
+});
+
+const getUserSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+});
+
+// ─── Routes ─────────────────────────────────────────────────
 
 // GET /users/me
 router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -15,13 +39,26 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
        WHERE u.id = $1`,
       [req.userId]
     );
-    if (!result.rows[0]) { res.status(404).json({ error: 'User not found' }); return; }
+    if (!result.rows[0]) { 
+      res.status(404).json({ 
+        error: 'User not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     res.json(result.rows[0]);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // PATCH /users/me
-router.patch('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/me', requireAuth, validate(updateUserSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { displayName, username, bio, theme, notificationFrequency, pushToken, avatarUrl } = req.body;
   try {
     const result = await query(
@@ -39,11 +76,17 @@ router.patch('/me', requireAuth, async (req: AuthRequest, res: Response): Promis
       [displayName, username, bio, theme, notificationFrequency, pushToken, avatarUrl, req.userId]
     );
     res.json(result.rows[0]);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // GET /users/:id  (public profile + stats)
-router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.get('/:id', requireAuth, validate(getUserSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await query(
       `SELECT u.id, u.display_name, u.username, u.avatar_url, u.bio, u.created_at,
@@ -54,9 +97,22 @@ router.get('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise
        WHERE u.id = $1`,
       [req.params.id]
     );
-    if (!result.rows[0]) { res.status(404).json({ error: 'User not found' }); return; }
+    if (!result.rows[0]) { 
+      res.status(404).json({ 
+        error: 'User not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     res.json(result.rows[0]);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 export default router;

@@ -1,8 +1,45 @@
 import { Router, Response } from 'express';
+import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
 import { query } from '../db';
+import { validate } from '../middleware/validate';
 
 const router = Router();
+
+// ─── Validation Schemas ─────────────────────────────────────
+
+const createGoalSchema = z.object({
+  body: z.object({
+    title: z.string().min(1),
+    category: z.string().min(1),
+    description: z.string().optional(),
+    targetDate: z.string().optional(),
+    isPublic: z.boolean().optional(),
+    coopOpen: z.boolean().optional(),
+  }),
+});
+
+const patchGoalSchema = z.object({
+  params: z.object({
+    id: z.string().uuid(),
+  }),
+  body: z.object({
+    title: z.string().min(1).optional(),
+    description: z.string().optional(),
+    targetDate: z.string().optional(),
+    status: z.enum(['active', 'completed', 'archived']).optional(),
+    isPublic: z.boolean().optional(),
+    coopOpen: z.boolean().optional(),
+  }),
+});
+
+const fromTemplateSchema = z.object({
+  body: z.object({
+    sourceGoalId: z.string().uuid(),
+  }),
+});
+
+// ─── Routes ─────────────────────────────────────────────────
 
 // GET /goals/public  — search other users' public goals (for co-op discovery)
 router.get('/public', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
@@ -44,7 +81,11 @@ router.get('/public', requireAuth, async (req: AuthRequest, res: Response): Prom
     res.json(result.rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    });
   }
 });
 
@@ -72,19 +113,31 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response): Promise<vo
       [req.userId]
     );
     res.json(result.rows);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // POST /goals/from-template
-router.post('/from-template', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/from-template', requireAuth, validate(fromTemplateSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { sourceGoalId } = req.body;
-  if (!sourceGoalId) { res.status(400).json({ error: 'sourceGoalId required' }); return; }
   try {
     const goalRes = await query(
       `SELECT title, category, description FROM goals WHERE id = $1 AND is_public = TRUE AND status = 'active'`,
       [sourceGoalId]
     );
-    if (!goalRes.rows[0]) { res.status(404).json({ error: 'Goal not found' }); return; }
+    if (!goalRes.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Goal not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     const { title, category, description } = goalRes.rows[0];
 
     const newGoal = await query(
@@ -106,13 +159,19 @@ router.post('/from-template', requireAuth, async (req: AuthRequest, res: Respons
     }
 
     res.status(201).json(newGoal.rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    console.error(err); 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // POST /goals
-router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/', requireAuth, validate(createGoalSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { title, category, description, targetDate, isPublic, coopOpen } = req.body;
-  if (!title || !category) { res.status(400).json({ error: 'title and category required' }); return; }
   try {
     const isCoop = !!coopOpen;
     const result = await query(
@@ -121,7 +180,13 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response): Promise<v
       [req.userId, title, category, description || null, targetDate || null, isCoop ? true : isPublic !== false, isCoop]
     );
     res.status(201).json(result.rows[0]);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // GET /goals/:goalId/stats  — streak + completion rate for recurring milestones
@@ -208,11 +273,18 @@ router.get('/:goalId/stats', requireAuth, async (req: AuthRequest, res: Response
     }));
 
     res.json(stats);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+  } catch (err) { 
+    console.error(err); 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // PATCH /goals/:id
-router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
+router.patch('/:id', requireAuth, validate(patchGoalSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { title, description, targetDate, status, isPublic, coopOpen } = req.body;
   try {
     const result = await query(
@@ -227,17 +299,36 @@ router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response): Promi
        WHERE id = $7 AND user_id = $8 RETURNING *`,
       [title, description, targetDate, status, isPublic, coopOpen ?? null, req.params.id, req.userId]
     );
-    if (!result.rows[0]) { res.status(404).json({ error: 'Goal not found' }); return; }
+    if (!result.rows[0]) { 
+      res.status(404).json({ 
+        error: 'Goal not found',
+        code: 'NOT_FOUND',
+        retryable: false
+      }); 
+      return; 
+    }
     res.json(result.rows[0]);
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 // DELETE /goals/:id
 router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await query('DELETE FROM goals WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
+    const result = await query('DELETE FROM goals WHERE id = $1 AND user_id = $2', [req.params.id, req.userId]);
     res.status(204).send();
-  } catch { res.status(500).json({ error: 'Server error' }); }
+  } catch { 
+    res.status(500).json({ 
+      error: 'Server error',
+      code: 'SERVER_ERROR',
+      retryable: true
+    }); 
+  }
 });
 
 export default router;

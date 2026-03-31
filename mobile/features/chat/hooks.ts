@@ -5,9 +5,20 @@ import { fetchConnection, fetchCheckIns, sendCheckIn, fetchGoalStats, GoalStats 
 import { CheckIn, CheckInsPage, Connection } from './types';
 import { useOfflineQueueStore } from '../../store/offlineQueueStore';
 
+// ─── Query Key Factories ────────────────────────────────────
+
+export const chatKeys = {
+  all: ['chats'] as const,
+  connection: (id: string) => [...chatKeys.all, 'connection', id] as const,
+  checkins: (id: string) => [...chatKeys.all, 'checkins', id] as const,
+  stats: (id: string) => [...chatKeys.all, 'stats', id] as const,
+};
+
+// ─── Hooks ──────────────────────────────────────────────────
+
 export function useConnection(connectionId: string) {
   return useQuery<Connection>({
-    queryKey: ['connection', connectionId],
+    queryKey: chatKeys.connection(connectionId),
     queryFn: () => fetchConnection(connectionId),
     enabled: !!connectionId,
   });
@@ -15,7 +26,7 @@ export function useConnection(connectionId: string) {
 
 export function useGoalStats(connectionId: string, enabled: boolean) {
   return useQuery<GoalStats>({
-    queryKey: ['goalStats', connectionId],
+    queryKey: chatKeys.stats(connectionId),
     queryFn: () => fetchGoalStats(connectionId),
     enabled: !!connectionId && enabled,
     staleTime: 30000,
@@ -24,7 +35,7 @@ export function useGoalStats(connectionId: string, enabled: boolean) {
 
 export function useCheckIns(connectionId: string) {
   return useInfiniteQuery<CheckInsPage>({
-    queryKey: ['checkins', connectionId],
+    queryKey: chatKeys.checkins(connectionId),
     queryFn: ({ pageParam }: { pageParam?: string }) =>
       fetchCheckIns(connectionId, pageParam as string | undefined),
     getNextPageParam: (lastPage: CheckInsPage) =>
@@ -43,17 +54,15 @@ export function useSendMessage(connectionId: string, conn: Connection | undefine
   const processQueue = useOfflineQueueStore((s) => s.processQueue);
   const loadQueue = useOfflineQueueStore((s) => s.loadQueue);
 
-  // Load persisted queue on mount
   useEffect(() => {
     loadQueue();
   }, [loadQueue]);
 
-  // Process queue when app comes to foreground
   useEffect(() => {
     const processQueueFn = async () => {
       await processQueue(async (item) => {
         await sendCheckIn(item.connectionId, item.message, item.mood);
-        qc.invalidateQueries({ queryKey: ['checkins', item.connectionId] });
+        qc.invalidateQueries({ queryKey: chatKeys.checkins(item.connectionId) });
       });
     };
 
@@ -69,8 +78,8 @@ export function useSendMessage(connectionId: string, conn: Connection | undefine
   const mutation = useMutation({
     mutationFn: (msg: string) => sendCheckIn(connectionId, msg, 'good'),
     onMutate: async (msg: string) => {
-      await qc.cancelQueries({ queryKey: ['checkins', connectionId] });
-      const previous = qc.getQueryData(['checkins', connectionId]);
+      await qc.cancelQueries({ queryKey: chatKeys.checkins(connectionId) });
+      const previous = qc.getQueryData(chatKeys.checkins(connectionId));
       const tempMessage: CheckIn = {
         id: `temp-${Date.now()}`,
         author_id: conn?.buddy_id ? 'me' : '',
@@ -81,9 +90,8 @@ export function useSendMessage(connectionId: string, conn: Connection | undefine
         milestone_title: null,
         syncStatus: 'pending',
       };
-      // Prepend to pages[0].messages (infinite query structure)
       qc.setQueryData<{ pages: CheckInsPage[]; pageParams: unknown[] }>(
-        ['checkins', connectionId],
+        chatKeys.checkins(connectionId),
         (old) => {
           if (!old) return old;
           const newPages = [...old.pages];
@@ -97,13 +105,12 @@ export function useSendMessage(connectionId: string, conn: Connection | undefine
       return { previous };
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['checkins', connectionId] });
+      qc.invalidateQueries({ queryKey: chatKeys.checkins(connectionId) });
     },
     onError: async (_err: Error, msg: string, context: { previous: unknown } | undefined) => {
       if (context?.previous) {
-        qc.setQueryData(['checkins', connectionId], context.previous);
+        qc.setQueryData(chatKeys.checkins(connectionId), context.previous);
       }
-      // Check if network error — enqueue for later
       const isNetworkError =
         _err.message.includes('Network') ||
         _err.message.includes('fetch') ||
@@ -120,14 +127,14 @@ export function useSendMessage(connectionId: string, conn: Connection | undefine
       }
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['checkins', connectionId] });
+      qc.invalidateQueries({ queryKey: chatKeys.checkins(connectionId) });
     },
   });
 
   const sendFn = useCallback(
     async (item: import('../../store/offlineQueueStore').QueuedMessage) => {
       await sendCheckIn(item.connectionId, item.message, item.mood);
-      qc.invalidateQueries({ queryKey: ['checkins', item.connectionId] });
+      qc.invalidateQueries({ queryKey: chatKeys.checkins(item.connectionId) });
     },
     [qc]
   );

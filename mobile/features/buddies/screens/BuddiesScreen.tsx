@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
 import { useThemeStore } from '../../../store/themeStore';
 import { useNotificationStore, BuddyTabKey } from '../../../store/notificationStore';
 import { useBuddies } from '../hooks';
@@ -36,6 +36,8 @@ function groupByBuddy(connections: Connection[]): BuddyGroup[] {
 
 export default function BuddiesScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('my_goals');
+  
+  // Zustand Selectors
   const colors = useThemeStore((s) => s.colors);
   const lastSeenAt = useNotificationStore((s) => s.lastSeenAt);
   const subTabLastSeen = useNotificationStore((s) => s.subTabLastSeen);
@@ -43,20 +45,22 @@ export default function BuddiesScreen() {
   const loadSeenTimes = useNotificationStore((s) => s.loadSeenTimes);
   const markSubTabSeen = useNotificationStore((s) => s.markSubTabSeen);
   const setPendingRequestCount = useNotificationStore((s) => s.setPendingRequestCount);
+  
   const s = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     loadSeenTimes();
-    markSubTabSeen('my_goals'); // default tab is visible on mount
-  }, []);
+    markSubTabSeen('my_goals');
+  }, [loadSeenTimes, markSubTabSeen]);
 
-  const qc = useQueryClient();
   const { data: connectionsData, isLoading, isError, refetch } = useBuddies();
   const [manualRefreshing, setManualRefreshing] = useState(false);
+  
   const handleRefresh = useCallback(async () => {
     setManualRefreshing(true);
     try { await refetch(); } finally { setManualRefreshing(false); }
   }, [refetch]);
+
   const connections = useMemo(() => {
     const raw = connectionsData ?? [];
     const seen = new Set<string>();
@@ -74,10 +78,9 @@ export default function BuddiesScreen() {
   const lastSeenAtRef = useRef(lastSeenAt);
   lastSeenAtRef.current = lastSeenAt;
 
-  // Keep pending request count in store for bottom nav badge
   useEffect(() => {
     setPendingRequestCount(incomingPending.length);
-  }, [incomingPending.length]);
+  }, [incomingPending.length, setPendingRequestCount]);
 
   useEffect(() => {
     const unread = accepted.filter(
@@ -86,10 +89,8 @@ export default function BuddiesScreen() {
     );
     const ids = unread.map((c) => c.id);
     setUnread(ids, ids.length);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accepted]);
+  }, [accepted, setUnread]);
 
-  // Compute per-sub-tab unread counts (new messages since last tab visit)
   const subTabBadge = useMemo(() => {
     const connUnread = (conns: Connection[], tabKey: BuddyTabKey) => {
       const since = subTabLastSeen[tabKey] ?? '';
@@ -120,7 +121,20 @@ export default function BuddiesScreen() {
     if (activeTab === 'my_goals') return accountability.filter((c) => c.is_my_goal);
     return accountability.filter((c) => !c.is_my_goal);
   }, [accepted, activeTab]);
+
   const buddyGroups = useMemo(() => groupByBuddy(tabAccepted), [tabAccepted]);
+
+  const TABS: { key: TabKey; label: string }[] = [
+    { key: 'my_goals', label: 'My Goals' },
+    { key: 'coaching', label: 'Coaching' },
+    { key: 'coop', label: 'Co-op' },
+  ];
+
+  const emptyMessages: Record<TabKey, { title: string; body: string }> = {
+    my_goals:  { title: 'No buddies yet',       body: 'Head to Find to discover a goal buddy' },
+    coaching:  { title: 'Not coaching anyone',  body: "Request to buddy up on someone's goal in Find" },
+    coop:      { title: 'No co-op goals',       body: 'Co-op connections share a common goal together' },
+  };
 
   if (isError && !connectionsData) return (
     <SafeAreaView style={s.container}>
@@ -137,18 +151,6 @@ export default function BuddiesScreen() {
     </SafeAreaView>
   );
 
-  const TABS: { key: TabKey; label: string }[] = [
-    { key: 'my_goals', label: 'My Goals' },
-    { key: 'coaching', label: 'Coaching' },
-    { key: 'coop', label: 'Co-op' },
-  ];
-
-  const emptyMessages: Record<TabKey, { title: string; body: string }> = {
-    my_goals:  { title: 'No buddies yet',       body: 'Head to Find to discover a goal buddy' },
-    coaching:  { title: 'Not coaching anyone',  body: "Request to buddy up on someone's goal in Find" },
-    coop:      { title: 'No co-op goals',       body: 'Co-op connections share a common goal together' },
-  };
-
   return (
     <SafeAreaView style={s.container}>
       <View style={s.headerRow}>
@@ -164,7 +166,6 @@ export default function BuddiesScreen() {
         )}
       </View>
 
-      {/* Sub-tabs */}
       <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
         {TABS.map((t) => {
           const badge = subTabBadge[t.key as BuddyTabKey] ?? 0;
@@ -186,51 +187,47 @@ export default function BuddiesScreen() {
         })}
       </View>
 
-
-      <ScrollView
-        contentContainerStyle={s.content}
+      <FlashList
+        data={buddyGroups}
+        renderItem={({ item }) => <BuddyCard group={item} />}
+        estimatedItemSize={100}
+        contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-      >
-        {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
-
-        {activeTab === 'my_goals' && !isLoading && (
-          <TouchableOpacity style={[s.goalsLink, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.navigate({ pathname: '/(tabs)/goals', params: { tab: 'goals' } })} activeOpacity={0.7}>
-            <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={16} color={colors.primary} />
-            <Text style={[s.goalsLinkText, { color: colors.primary }]}>View my goals</Text>
-            <MaterialCommunityIcons name="chevron-right" size={16} color={colors.primary} />
-          </TouchableOpacity>
+        ListHeaderComponent={() => (
+          <>
+            {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
+            {activeTab === 'my_goals' && !isLoading && (
+              <TouchableOpacity style={[s.goalsLink, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.navigate({ pathname: '/(tabs)/goals', params: { tab: 'goals' } })} activeOpacity={0.7}>
+                <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={16} color={colors.primary} />
+                <Text style={[s.goalsLinkText, { color: colors.primary }]}>View my goals</Text>
+                <MaterialCommunityIcons name="chevron-right" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+            <View style={{ height: 16 }} />
+          </>
         )}
-
-        {buddyGroups.length > 0 && (
-          <View style={s.section}>
-            {buddyGroups.map((group) => (
-              <BuddyCard key={group.buddy_id} group={group} />
-            ))}
-          </View>
+        ListEmptyComponent={() => (
+          !isLoading ? (
+            <View style={s.empty}>
+              <MaterialCommunityIcons name="account-group-outline" size={52} color={colors.border} />
+              <Text style={s.emptyTitle}>{emptyMessages[activeTab].title}</Text>
+              <Text style={s.emptyText}>{emptyMessages[activeTab].body}</Text>
+            </View>
+          ) : null
         )}
-
-        {!isLoading && tabAccepted.length === 0 && (
-          <View style={s.empty}>
-            <MaterialCommunityIcons name="account-group-outline" size={52} color={colors.border} />
-            <Text style={s.emptyTitle}>{emptyMessages[activeTab].title}</Text>
-            <Text style={s.emptyText}>{emptyMessages[activeTab].body}</Text>
-          </View>
-        )}
-      </ScrollView>
+      />
     </SafeAreaView>
   );
 }
 
 const makeStyles = (colors: any) => StyleSheet.create({
   container:       { flex: 1, backgroundColor: colors.background },
-
   headerRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   title:           { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text },
   requestsBadge:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20 },
   requestsBadgeText: { color: '#fff', fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.bold },
   requestsCount:   { backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   requestsCountText: { color: '#fff', fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
-
   tabBar:          { flexDirection: 'row', paddingHorizontal: 20, borderBottomWidth: 1, marginBottom: 4 },
   tabItem:         { flex: 1, alignItems: 'center', paddingVertical: 10 },
   tabLabelRow:     { flexDirection: 'row', alignItems: 'center', gap: 5 },
@@ -238,18 +235,13 @@ const makeStyles = (colors: any) => StyleSheet.create({
   tabUnderline:    { position: 'absolute', bottom: 0, left: 8, right: 8, height: 2, borderRadius: 1 },
   tabBadge:        { minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   tabBadgeText:    { color: '#fff', fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
-  content:         { padding: 16, gap: 16 },
-  section:         { gap: 10 },
-
   empty:           { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTitle:      { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text },
   emptyText:       { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, textAlign: 'center' },
-
   errorState:      { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 },
   errorText:       { fontSize: FS.body, lineHeight: LH.body, color: colors.textSecondary, textAlign: 'center' },
   retryBtn:        { backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 10 },
   retryBtnText:    { color: '#fff', fontWeight: FW.bold, fontSize: FS.secondary, lineHeight: LH.secondary },
-
   goalsLink:       { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
   goalsLinkText:   { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
 });

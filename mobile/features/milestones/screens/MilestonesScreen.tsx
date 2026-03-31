@@ -1,8 +1,9 @@
 import { useMemo, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  View, Text, StyleSheet, TouchableOpacity,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { FS, FW, LH } from '../../../theme/typography';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +17,7 @@ export default function MilestonesScreen() {
 
   const { data: feed = [], isLoading, isError, refetch } = useWinsFeed();
   const [manualRefreshing, setManualRefreshing] = useState(false);
+  
   const handleRefresh = useCallback(async () => {
     setManualRefreshing(true);
     try { await refetch(); } finally { setManualRefreshing(false); }
@@ -38,24 +40,26 @@ export default function MilestonesScreen() {
     <SafeAreaView style={s.container}>
       <Text style={s.title}>Wins</Text>
 
-      <ScrollView
-        contentContainerStyle={s.content}
+      <FlashList
+        data={feed}
+        renderItem={({ item }) => <WinCard item={item} colors={colors} />}
+        estimatedItemSize={120}
+        contentContainerStyle={{ padding: 16 }}
         refreshControl={<RefreshControl refreshing={manualRefreshing} onRefresh={handleRefresh} tintColor={colors.primary} />}
-      >
-        {isLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />}
-
-        {!isLoading && feed.length === 0 && (
-          <View style={s.empty}>
-            <MaterialCommunityIcons name="trophy-outline" size={52} color={colors.border} />
-            <Text style={s.emptyTitle}>No wins yet</Text>
-            <Text style={s.emptyText}>Complete milestones and they'll show up here</Text>
-          </View>
+        ListHeaderComponent={() => (
+          isLoading ? <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} /> : null
         )}
-
-        {feed.map((item) => (
-          <WinCard key={item.id} item={item} colors={colors} />
-        ))}
-      </ScrollView>
+        ListEmptyComponent={() => (
+          !isLoading ? (
+            <View style={s.empty}>
+              <MaterialCommunityIcons name="trophy-outline" size={52} color={colors.border} />
+              <Text style={s.emptyTitle}>No wins yet</Text>
+              <Text style={s.emptyText}>Complete milestones and they'll show up here</Text>
+            </View>
+          ) : null
+        )}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      />
     </SafeAreaView>
   );
 }
@@ -63,7 +67,6 @@ export default function MilestonesScreen() {
 const makeStyles = (colors: any) => StyleSheet.create({
   container:  { flex: 1, backgroundColor: colors.background },
   title:      { fontSize: FS.title, lineHeight: LH.title, fontWeight: FW.bold, color: colors.text, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  content:    { padding: 16, gap: 12, paddingBottom: 32 },
   empty:      { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyTitle: { fontSize: FS.section, lineHeight: LH.section, fontWeight: FW.bold, color: colors.text },
   emptyText:  { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.textSecondary, textAlign: 'center' },
