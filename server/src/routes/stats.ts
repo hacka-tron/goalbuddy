@@ -1,8 +1,9 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { query } from '../db';
 import { validate } from '../middleware/validate';
+import { StatsService } from '../services/stats.service';
+import { ServiceError } from '../lib/errors';
 
 const router = Router();
 
@@ -16,28 +17,16 @@ const getStatsSchema = z.object({
 
 // ─── Routes ─────────────────────────────────────────────────
 
-// GET /stats/:userId
 router.get('/:userId', requireAuth, validate(getStatsSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const result = await query(
-      `SELECT * FROM activity_stats WHERE user_id = $1`,
-      [req.params.userId]
-    );
-    if (!result.rows[0]) { 
-      res.status(404).json({ 
-        error: 'Stats not found',
-        code: 'NOT_FOUND',
-        retryable: false
-      }); 
-      return; 
+    const stats = await StatsService.getStats(req.params.userId as string);
+    res.json(stats);
+  } catch (err) {
+    if (err instanceof ServiceError) {
+      res.status(err.statusCode).json({ error: err.message, code: err.code, retryable: err.retryable });
+      return;
     }
-    res.json(result.rows[0]);
-  } catch { 
-    res.status(500).json({ 
-      error: 'Server error',
-      code: 'SERVER_ERROR',
-      retryable: true
-    }); 
+    res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR', retryable: true });
   }
 });
 

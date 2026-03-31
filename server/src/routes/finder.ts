@@ -1,8 +1,9 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
 import { requireAuth, AuthRequest } from '../middleware/auth';
-import { query } from '../db';
 import { validate } from '../middleware/validate';
+import { FinderService } from '../services/finder.service';
+import { ServiceError } from '../lib/errors';
 
 const router = Router();
 
@@ -25,149 +26,29 @@ const swipeSchema = z.object({
 
 // ─── Routes ─────────────────────────────────────────────────
 
-// GET /finder/deck?goalId=xxx
 router.get('/deck', requireAuth, validate(deckSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { goalId } = req.query as { goalId: string };
-
   try {
-    const goalCheck = await query('SELECT id FROM goals WHERE id = $1 AND user_id = $2', [goalId, req.userId]);
-    if (!goalCheck.rows[0]) { 
-      res.status(404).json({ 
-        error: 'Goal not found',
-        code: 'NOT_FOUND',
-        retryable: false
-      }); 
-      return; 
-    }
-
-    const buddyCheck = await query(
-      `SELECT id FROM buddy_connections WHERE goal_id = $1 AND status = 'accepted'`,
-      [goalId]
-    );
-    if (buddyCheck.rows[0]) {
-      res.status(409).json({ 
-        error: 'This goal already has a buddy', 
-        code: 'CONFLICT',
-        retryable: false,
-        locked: true 
-      });
+    const deck = await FinderService.getDeck(req.userId!, goalId);
+    res.json(deck);
+  } catch (err) {
+    if (err instanceof ServiceError) {
+      const body: Record<string, unknown> = { error: err.message, code: err.code, retryable: err.retryable };
+      if (err.statusCode === 409) body.locked = true;
+      res.status(err.statusCode).json(body);
       return;
     }
-
-    const result = await query(
-      `SELECT * FROM (
-        SELECT DISTINCT ON (u.id)
-          u.id, u.display_name, u.username, u.avatar_url, u.bio,
-          g.id AS goal_id, g.title AS goal_title, g.category,
-          a.activity_level, a.current_streak, a.total_checkins, a.milestones_completed,
-          (SELECT COUNT(*) FROM goals g2
-           JOIN goals g3 ON g3.category = g2.category AND g3.user_id = $1 AND g3.status = 'active'
-           WHERE g2.user_id = u.id AND g2.status = 'active' AND g2.is_public = TRUE) AS shared_goal_count
-        FROM users u
-        JOIN goals g ON g.user_id = u.id AND g.status = 'active' AND g.is_public = TRUE
-          AND NOT EXISTS (
-            SELECT 1 FROM buddy_connections bc2
-            WHERE bc2.goal_id = g.id AND bc2.status = 'accepted'
-          )
-        JOIN goals my_goal ON my_goal.id = $2 AND my_goal.category = g.category
-        LEFT JOIN activity_stats a ON a.user_id = u.id
-        WHERE u.id != $1
-          AND u.id NOT IN (
-            SELECT CASE WHEN requester_id = $1 THEN receiver_id ELSE requester_id END
-            FROM buddy_connections
-            WHERE (requester_id = $1 OR receiver_id = $1)
-              AND (goal_id = $2 OR receiver_goal_id = $2)
-              AND status IN ('pending','accepted')
-          )
-          AND NOT EXISTS (
-            SELECT 1 FROM swipe_actions sa
-            WHERE sa.swiper_id = $1
-              AND sa.swiped_id = u.id
-              AND sa.goal_id = $2
-          )
-        ORDER BY u.id, a.activity_level DESC NULLS LAST
-      ) sub
-      ORDER BY activity_level DESC NULLS LAST, shared_goal_count DESC
-      LIMIT 50`,
-      [req.userId, goalId]
-    );
-
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      error: 'Server error',
-      code: 'SERVER_ERROR',
-      retryable: true
-    });
+    res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR', retryable: true });
   }
 });
 
-// POST /finder/swipe
 router.post('/swipe', requireAuth, validate(swipeSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   const { swipedId, action, goalId, cardGoalId } = req.body;
-
   try {
-    // Persist swipe to DB
-    await query(
-      `INSERT INTO swipe_actions (swiper_id, swiped_id, action, mode, goal_id)
-       SELECT $1, $2, $3, 'specific', $4
-       WHERE NOT EXISTS (
-         SELECT 1 FROM swipe_actions WHERE swiper_id = $1 AND swiped_id = $2 AND goal_id = $4
-       )`,
-      [req.userId, swipedId, action, goalId]
-    );
-
-    let matched = false;
-    let connection = null;
-
-    if (action === 'like') {
-      // Auto-swipe back for @test.com users
-      const userCheck = await query(`SELECT email FROM users WHERE id = $1`, [swipedId]);
-      const swipedEmail: string = userCheck.rows[0]?.email || '';
-      if (swipedEmail.includes('@test.com') && cardGoalId) {
-        await query(
-          `INSERT INTO swipe_actions (swiper_id, swiped_id, action, mode, goal_id)
-           SELECT $1, $2, 'like', 'specific', $3
-           WHERE NOT EXISTS (
-             SELECT 1 FROM swipe_actions WHERE swiper_id = $1 AND swiped_id = $2 AND goal_id = $3
-           )`,
-          [swipedId, req.userId, cardGoalId]
-        );
-      }
-
-      // Check for mutual like
-      const reverseSwipe = await query(
-        `SELECT goal_id FROM swipe_actions
-         WHERE swiper_id = $1 AND swiped_id = $2 AND action = 'like'
-         LIMIT 1`,
-        [swipedId, req.userId]
-      );
-
-      if (reverseSwipe.rows[0]) {
-        const theirGoalId = reverseSwipe.rows[0].goal_id;
-        const conn = await query(
-          `INSERT INTO buddy_connections (requester_id, receiver_id, goal_id, receiver_goal_id, status, accepted_at)
-           VALUES ($1, $2, $3, $4, 'accepted', NOW())
-           ON CONFLICT (requester_id, receiver_id, goal_id) DO NOTHING
-           RETURNING *`,
-          [swipedId, req.userId, theirGoalId, goalId]
-        );
-        if (conn.rows[0]) {
-          matched = true;
-          connection = conn.rows[0];
-        }
-      }
-    }
-
-    res.json({ success: true, matched, connection });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ 
-      error: 'Server error',
-      code: 'SERVER_ERROR',
-      retryable: true
-    });
+    const result = await FinderService.recordSwipe(req.userId!, swipedId, action, goalId, cardGoalId);
+    res.json({ success: true, ...result });
+  } catch {
+    res.status(500).json({ error: 'Server error', code: 'SERVER_ERROR', retryable: true });
   }
 });
 
