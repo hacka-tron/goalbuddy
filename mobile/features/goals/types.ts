@@ -1,3 +1,5 @@
+export type MilestoneFrequency = 'once' | 'daily' | 'weekly' | 'monthly' | 'x_weekly' | 'custom_days';
+
 export type Goal = {
   id: string;
   title: string;
@@ -21,12 +23,15 @@ export type Milestone = {
   description: string | null;
   due_date: string | null;
   completed_at: string | null;
-  frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'x_weekly' | 'custom_days';
+  frequency: MilestoneFrequency;
   days_per_week?: number;
   custom_days?: string;
   is_done_this_period: boolean;
   goal_title: string;
   goal_category: string;
+  schedule_mode: 'open_ended' | 'time_bound';
+  start_date: string | null;
+  end_date: string | null;
 };
 
 export type PublicGoal = {
@@ -50,9 +55,15 @@ export type MsFilter = 'today' | 'week' | 'month' | 'all';
 export type MilestoneStats = {
   id: string;
   title: string;
-  frequency: 'daily' | 'weekly' | 'monthly';
+  frequency: MilestoneFrequency;
+  schedule_mode: 'open_ended' | 'time_bound';
+  start_date: string | null;
+  end_date: string | null;
   streak: number;
   total_completed: number;
   total_expected: number;
   completion_rate: number;
+  total_expected_finite?: number;
+  sessions_remaining?: number;
+  percent_complete?: number;
 };

@@ -42,7 +42,18 @@ const createMilestoneSchema = z.object({
     frequency: z.enum(['once', 'daily', 'weekly', 'monthly', 'x_weekly', 'custom_days']).optional(),
     daysPerWeek: z.number().min(1).max(7).optional(),
     customDays: z.string().optional(),
-  }),
+    scheduleMode: z.enum(['open_ended', 'time_bound']).optional(),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  })
+    .refine(
+      (b) => b.scheduleMode !== 'time_bound' || !!b.startDate,
+      { message: 'startDate is required for time_bound milestones', path: ['startDate'] }
+    )
+    .refine(
+      (b) => !b.endDate || !b.startDate || b.endDate >= b.startDate,
+      { message: 'endDate must be on or after startDate', path: ['endDate'] }
+    ),
 });
 
 const patchMilestoneSchema = z.object({
@@ -54,7 +65,18 @@ const patchMilestoneSchema = z.object({
     description: z.string().optional(),
     dueDate: z.string().optional(),
     completed: z.boolean().optional(),
-  }),
+    scheduleMode: z.enum(['open_ended', 'time_bound']).optional(),
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  })
+    .refine(
+      (b) => b.scheduleMode !== 'time_bound' || !!b.startDate,
+      { message: 'startDate is required for time_bound milestones', path: ['startDate'] }
+    )
+    .refine(
+      (b) => !b.endDate || !b.startDate || b.endDate >= b.startDate,
+      { message: 'endDate must be on or after startDate', path: ['endDate'] }
+    ),
 });
 
 // ─── Routes ─────────────────────────────────────────────────

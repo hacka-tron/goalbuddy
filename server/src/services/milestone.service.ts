@@ -1,6 +1,27 @@
 import { query } from '../db';
 import { ServiceError } from '../lib/errors';
 
+function formatDateOnly(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return String(value).slice(0, 10);
+}
+
+function normalizeMilestoneDates<T extends Record<string, unknown>>(milestone: T): T {
+  return {
+    ...milestone,
+    due_date: formatDateOnly(milestone.due_date),
+    start_date: formatDateOnly(milestone.start_date),
+    end_date: formatDateOnly(milestone.end_date),
+  };
+}
+
 export class MilestoneService {
   static async getFeed(userId: string) {
     const result = await query(
@@ -173,10 +194,16 @@ export class MilestoneService {
     frequency?: string;
     daysPerWeek?: number;
     customDays?: string;
+    scheduleMode?: string;
+    startDate?: string;
+    endDate?: string;
   }) {
     const result = await query(
-      `INSERT INTO milestones (goal_id, user_id, title, description, due_date, ai_suggested, frequency, days_per_week, custom_days)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO milestones
+         (goal_id, user_id, title, description, due_date, ai_suggested,
+          frequency, days_per_week, custom_days,
+          schedule_mode, start_date, end_date)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
       [
         data.goalId,
         userId,
@@ -187,9 +214,12 @@ export class MilestoneService {
         data.frequency || 'once',
         data.daysPerWeek ?? null,
         data.customDays ?? null,
+        data.scheduleMode || 'open_ended',
+        data.startDate || null,
+        data.endDate || null,
       ]
     );
-    return result.rows[0];
+    return normalizeMilestoneDates(result.rows[0]);
   }
 
   static async updateMilestone(userId: string, id: string, data: {
@@ -197,20 +227,36 @@ export class MilestoneService {
     description?: string;
     dueDate?: string;
     completed?: boolean;
+    scheduleMode?: string;
+    startDate?: string;
+    endDate?: string;
   }) {
     const result = await query(
       `UPDATE milestones SET
         title = COALESCE($1, title),
         description = COALESCE($2, description),
         due_date = COALESCE($3, due_date),
-        completed_at = CASE WHEN $4 = TRUE THEN NOW() WHEN $4 = FALSE THEN NULL ELSE completed_at END
-       WHERE id = $5 AND user_id = $6
+        completed_at = CASE WHEN $4 = TRUE THEN NOW() WHEN $4 = FALSE THEN NULL ELSE completed_at END,
+        schedule_mode = COALESCE($5, schedule_mode),
+        start_date = COALESCE($6::date, start_date),
+        end_date = COALESCE($7::date, end_date)
+       WHERE id = $8 AND user_id = $9
        RETURNING *`,
-      [data.title, data.description, data.dueDate, data.completed, id, userId]
+      [
+        data.title,
+        data.description,
+        data.dueDate,
+        data.completed,
+        data.scheduleMode,
+        data.startDate,
+        data.endDate,
+        id,
+        userId,
+      ]
     );
     if (!result.rows[0]) {
       throw new ServiceError('Milestone not found', 404, 'NOT_FOUND');
     }
-    return result.rows[0];
+    return normalizeMilestoneDates(result.rows[0]);
   }
 }

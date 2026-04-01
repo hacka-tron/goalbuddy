@@ -59,6 +59,9 @@ export interface Milestone {
   is_done_this_period: boolean;
   goal_title: string;
   goal_category: string;
+  schedule_mode: 'open_ended' | 'time_bound';
+  start_date: string | null;
+  end_date: string | null;
 }
 
 export interface ErrorResponse {

@@ -1,5 +1,6 @@
 import { query } from '../db';
 import { ServiceError } from '../lib/errors';
+import { computeExpectedSessions } from '../lib/milestone-utils';
 
 // ─── Deadline Warning Helpers ────────────────────────────────
 
@@ -285,7 +286,11 @@ export class BuddyService {
     const goalId = conn.goal_id;
 
     const msResult = await query(
-      `SELECT m.id, m.title, m.frequency, m.created_at::date AS created_date
+      `SELECT m.id, m.title, m.frequency, m.days_per_week, m.custom_days,
+              m.created_at::date AS created_date,
+              m.schedule_mode,
+              m.start_date::text AS start_date,
+              m.end_date::text AS end_date
        FROM milestones m
        WHERE m.goal_id = $1 AND m.user_id = $2 AND m.frequency != 'once'
        ORDER BY m.created_at`,
@@ -305,13 +310,16 @@ export class BuddyService {
       const logSet = new Set(logs);
 
       const now = new Date(); now.setHours(0, 0, 0, 0);
-      const created = new Date(ms.created_date); created.setHours(0, 0, 0, 0);
+      const trackingStart = (ms.schedule_mode === 'time_bound' && ms.start_date)
+        ? new Date(ms.start_date)
+        : new Date(ms.created_date);
+      trackingStart.setHours(0, 0, 0, 0);
 
       let startDate = new Date(now);
       if (!logSet.has(getPeriodKey(now, ms.frequency))) startDate = prevPeriod(now, ms.frequency);
       let streak = 0;
       let checkDate = new Date(startDate);
-      while (checkDate >= created && logSet.has(getPeriodKey(checkDate, ms.frequency))) {
+      while (checkDate >= trackingStart && logSet.has(getPeriodKey(checkDate, ms.frequency))) {
         streak++;
         checkDate = prevPeriod(checkDate, ms.frequency);
       }
@@ -319,13 +327,13 @@ export class BuddyService {
       const lastCompletedPeriod = prevPeriod(now, ms.frequency);
       let totalExpected = 0;
       if (ms.frequency === 'daily') {
-        totalExpected = Math.max(0, Math.floor((lastCompletedPeriod.getTime() - created.getTime()) / 86400000) + 1);
+        totalExpected = Math.max(0, Math.floor((lastCompletedPeriod.getTime() - trackingStart.getTime()) / 86400000) + 1);
       } else if (ms.frequency === 'weekly') {
-        const cw = new Date(created); cw.setDate(created.getDate() - ((created.getDay() + 6) % 7));
+        const cw = new Date(trackingStart); cw.setDate(trackingStart.getDate() - ((trackingStart.getDay() + 6) % 7));
         const lw = new Date(lastCompletedPeriod); lw.setDate(lastCompletedPeriod.getDate() - ((lastCompletedPeriod.getDay() + 6) % 7));
         totalExpected = Math.max(0, Math.floor((lw.getTime() - cw.getTime()) / (7 * 86400000)) + 1);
       } else {
-        const cm = new Date(created.getFullYear(), created.getMonth(), 1);
+        const cm = new Date(trackingStart.getFullYear(), trackingStart.getMonth(), 1);
         const lm = new Date(lastCompletedPeriod.getFullYear(), lastCompletedPeriod.getMonth(), 1);
         totalExpected = Math.max(0, (lm.getFullYear() - cm.getFullYear()) * 12 + (lm.getMonth() - cm.getMonth()) + 1);
       }
@@ -333,15 +341,37 @@ export class BuddyService {
       const totalCompleted = Math.min(logs.length, totalExpected);
       const completionRate = totalExpected > 0 ? totalCompleted / totalExpected : 0;
 
+      let finiteFields: Record<string, number> = {};
+      if (ms.schedule_mode === 'time_bound' && ms.end_date) {
+        const totalExpectedFinite = computeExpectedSessions(
+          ms.frequency,
+          ms.days_per_week ?? null,
+          ms.custom_days ?? null,
+          trackingStart,
+          new Date(ms.end_date),
+        );
+        finiteFields = {
+          total_expected_finite: totalExpectedFinite,
+          sessions_remaining: Math.max(0, totalExpectedFinite - logs.length),
+          percent_complete: totalExpectedFinite > 0
+            ? Math.round((logs.length / totalExpectedFinite) * 1000) / 1000
+            : 0,
+        };
+      }
+
       return {
         id: ms.id,
         title: ms.title,
         frequency: ms.frequency,
+        schedule_mode: ms.schedule_mode,
+        start_date: ms.start_date ?? null,
+        end_date: ms.end_date ?? null,
         streak,
         total_completed: totalCompleted,
         total_expected: totalExpected,
-        completion_rate: completionRate,
-        skip_rate: 1 - completionRate,
+        completion_rate: Math.round(completionRate * 1000) / 1000,
+        skip_rate: Math.round((1 - completionRate) * 1000) / 1000,
+        ...finiteFields,
       };
     }));
 
