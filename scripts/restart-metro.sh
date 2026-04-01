@@ -31,8 +31,10 @@ npx expo start --reset-cache >> /tmp/metro.log 2>&1 &
 METRO_PID=$!
 echo "Metro started (PID $METRO_PID), log at /tmp/metro.log"
 
-# Give Metro a moment to bind, then launch app on both emulators
+# Give Metro a moment to bind, forward port, then launch app on both emulators
 sleep 4
+adb -s emulator-5554 reverse tcp:8081 tcp:8081 > /dev/null 2>&1 || true
+adb -s emulator-5556 reverse tcp:8081 tcp:8081 > /dev/null 2>&1 || true
 adb -s emulator-5554 shell monkey -p "$PKG" 1 > /dev/null 2>&1 || true
 adb -s emulator-5556 shell monkey -p "$PKG" 1 > /dev/null 2>&1 || true
 
