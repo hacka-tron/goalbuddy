@@ -43,6 +43,17 @@
 
 ---
 
+## 🧪 Testing Requirements
+
+**Every new feature must include tests before it is considered complete.**
+
+- **Backend features**: add integration tests to the relevant `server/src/__tests__/*.test.ts` suite. New routes → test happy path, validation errors (400), auth failures (401), and business rule violations. New utilities → unit tests covering all branches.
+- **Mobile features**: add unit/component tests for any new hooks (query + mutation), utility functions, and non-trivial components.
+- **New seed data shapes**: update `server/src/__tests__/setup/db-helpers.ts` seed helpers to accept the new fields.
+- Tests must pass (`npm test`) before the feature is merged or committed as complete.
+
+---
+
 ## 🧪 Test Architecture
 
 ### Mobile — Unit & Component Tests
