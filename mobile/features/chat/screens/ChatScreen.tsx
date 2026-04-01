@@ -339,6 +339,8 @@ export default function ChatScreen() {
     });
   }, [message, sendMutation]);
 
+  const handleStatsPress = useCallback(() => setStatsVisible(true), []);
+
   const renderItem = useCallback(({ item, index }: { item: ChatItem; index: number }) => {
     if ('type' in item) {
       return <TimestampLabel label={item.label} colors={colors} />;
@@ -488,7 +490,7 @@ export default function ChatScreen() {
           sendError={sendError}
           paddingBottom={insets.bottom}
           colors={colors}
-          onStatsPress={isBuddyView ? () => setStatsVisible(true) : undefined}
+          onStatsPress={isBuddyView ? handleStatsPress : undefined}
         />
       </KeyboardAvoidingView>
 
