@@ -402,6 +402,7 @@ export default function ChatScreen() {
 
   const cat = GOAL_CATEGORIES.find((c) => c.key === conn.goal_category);
   const isBuddyView = !conn.is_my_goal;
+  const showStats = isBuddyView || conn.connection_type === 'coop';
   const warnings = isBuddyView ? (conn.deadline_warnings ?? []) : [];
 
   return (
@@ -490,11 +491,11 @@ export default function ChatScreen() {
           sendError={sendError}
           paddingBottom={insets.bottom}
           colors={colors}
-          onStatsPress={isBuddyView ? handleStatsPress : undefined}
+          onStatsPress={showStats ? handleStatsPress : undefined}
         />
       </KeyboardAvoidingView>
 
-      {isBuddyView && (
+      {showStats && (
         <StatsModal
           connectionId={id ?? ''}
           buddyName={conn.buddy_name}
