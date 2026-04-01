@@ -12,6 +12,7 @@ interface Props {
   sendError: boolean;
   paddingBottom: number;
   colors: any;
+  onStatsPress?: () => void;
 }
 
 export function ChatInput({
@@ -23,6 +24,7 @@ export function ChatInput({
   sendError,
   paddingBottom,
   colors,
+  onStatsPress,
 }: Props) {
   const s = useMemo(() => makeStyles(colors), [colors]);
 
@@ -38,6 +40,15 @@ export function ChatInput({
         </View>
       )}
       <View style={s.messageRow}>
+        {onStatsPress && (
+          <TouchableOpacity
+            style={[s.statsBtn, { backgroundColor: colors.primaryLight, borderColor: colors.primary }]}
+            onPress={onStatsPress}
+            accessibilityLabel="View goal stats"
+          >
+            <MaterialCommunityIcons name="chart-bar" size={18} color={colors.primary} />
+          </TouchableOpacity>
+        )}
         <TextInput
           style={s.messageInput}
           value={message}
@@ -61,12 +72,13 @@ export function ChatInput({
 }
 
 const makeStyles = (colors: any) => StyleSheet.create({
-  inputArea:     { backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, paddingHorizontal: 12 },
+  inputArea:       { backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 12, paddingHorizontal: 12 },
   sendErrorBanner: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 8 },
   sendErrorText:   { fontSize: FS.secondary, lineHeight: LH.secondary, color: '#FF6B6B' },
   sendErrorRetry:  { fontSize: FS.secondary, lineHeight: LH.secondary, color: colors.primary, fontWeight: FW.bold, textDecorationLine: 'underline' },
-  messageRow:    { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
-  messageInput:  { flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, fontSize: FS.body, lineHeight: LH.body, color: colors.text, maxHeight: 100 },
-  sendBtn:       { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
+  messageRow:      { flexDirection: 'row', gap: 8, alignItems: 'flex-end' },
+  statsBtn:        { width: 36, height: 36, borderRadius: 10, borderWidth: 1.5, justifyContent: 'center', alignItems: 'center' },
+  messageInput:    { flex: 1, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, fontSize: FS.body, lineHeight: LH.body, color: colors.text, maxHeight: 100 },
+  sendBtn:         { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
   sendBtnDisabled: { opacity: 0.4 },
 });

@@ -424,15 +424,6 @@ export default function ChatScreen() {
         </View>
         <View style={s.headerRight}>
           <ActivityBadge level={conn.activity_level} small />
-          {isBuddyView && (
-            <TouchableOpacity
-              onPress={() => setStatsVisible(true)}
-              style={s.statsBtn}
-              accessibilityLabel="View goal stats"
-            >
-              <MaterialCommunityIcons name="chart-bar" size={20} color={colors.primary} />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
 
@@ -497,6 +488,7 @@ export default function ChatScreen() {
           sendError={sendError}
           paddingBottom={insets.bottom}
           colors={colors}
+          onStatsPress={isBuddyView ? () => setStatsVisible(true) : undefined}
         />
       </KeyboardAvoidingView>
 
@@ -525,7 +517,6 @@ const makeStyles = (colors: any) => StyleSheet.create({
   headerGoalRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 1 },
   headerGoal:    { fontSize: FS.caption, lineHeight: LH.caption, color: colors.textSecondary, flex: 1 },
   headerRight:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  statsBtn:      { padding: 6 },
   overdueBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FF6B6B12', borderBottomWidth: 1, borderBottomColor: '#FF6B6B30', paddingHorizontal: 16, paddingVertical: 10 },
   overdueBannerText: { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, color: '#FF6B6B', fontWeight: FW.medium },
   lateBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F59E0B12', borderBottomWidth: 1, borderBottomColor: '#F59E0B30', paddingHorizontal: 16, paddingVertical: 10 },
