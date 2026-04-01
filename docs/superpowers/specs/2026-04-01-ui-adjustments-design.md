@@ -65,7 +65,9 @@ Five UI improvements across three screens: Chat, Buddy Tabs, and the New Goal fo
 
 **Implementation notes:**
 - Local state: `isPublic: boolean`, `isCoopOpen: boolean`
-- When `isPublic` toggles OFF: set `isCoopOpen = false`, hide co-op row
+- When `isPublic` toggles OFF: **do not reset `isCoopOpen`** — preserve its value in state. Simply hide the co-op row.
+- When `isPublic` toggles back ON: co-op row reappears with whatever value `isCoopOpen` was before.
+- On form submit: the effective value sent to the server is `coop_open: isPublic && isCoopOpen`. Never send `coop_open: true` when `isPublic` is false.
 - Placeholder when co-op is hidden:
   ```
   "Co-op option appears when Public is turned on"
