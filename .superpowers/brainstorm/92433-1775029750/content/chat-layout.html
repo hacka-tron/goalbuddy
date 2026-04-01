@@ -1,0 +1,62 @@
+<h2>Chat Screen — Proposed Changes</h2>
+<p class="subtitle">Stats button moves to bottom-left. Confirming the layout before we build.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Current</div>
+    <div class="mockup-body" style="padding:0; background:#f5f5f5; border-radius:8px; overflow:hidden; font-family:sans-serif;">
+      <!-- Header -->
+      <div style="background:#4a7c59; padding:12px 16px; display:flex; align-items:center; gap:10px; color:#fff;">
+        <div style="width:32px;height:32px;background:rgba(255,255,255,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:12px;">←</div>
+        <div style="width:36px;height:36px;background:rgba(255,255,255,0.3);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:11px;">JD</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">Jake D.</div>
+          <div style="font-size:11px;opacity:0.8;">Run a 5K</div>
+        </div>
+        <!-- Stats button top-right -->
+        <div style="width:32px;height:32px;background:rgba(255,255,255,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;">📊</div>
+      </div>
+      <!-- Messages -->
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;min-height:180px;">
+        <div style="align-self:flex-end;background:#4a7c59;color:#fff;padding:8px 12px;border-radius:14px 14px 4px 14px;font-size:12px;max-width:70%;">Ran 3km today! Feeling good 🔥</div>
+        <div style="align-self:flex-start;background:#fff;color:#333;padding:8px 12px;border-radius:14px 14px 14px 4px;font-size:12px;max-width:70%;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Great work! Keep it up!</div>
+        <div style="align-self:flex-end;background:#4a7c59;color:#fff;padding:8px 12px;border-radius:14px 14px 4px 14px;font-size:12px;max-width:70%;">Thanks 💪</div>
+      </div>
+      <!-- Input bar — no stats button here -->
+      <div style="background:#fff;padding:10px 12px;display:flex;align-items:center;gap:8px;border-top:1px solid #eee;">
+        <input style="flex:1;border:1px solid #ddd;border-radius:20px;padding:8px 14px;font-size:12px;outline:none;" placeholder="How's your progress?">
+        <div style="width:36px;height:36px;background:#4a7c59;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;">↑</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Proposed ✦</div>
+    <div class="mockup-body" style="padding:0; background:#f5f5f5; border-radius:8px; overflow:hidden; font-family:sans-serif;">
+      <!-- Header — no stats button -->
+      <div style="background:#4a7c59; padding:12px 16px; display:flex; align-items:center; gap:10px; color:#fff;">
+        <div style="width:32px;height:32px;background:rgba(255,255,255,0.3);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:12px;">←</div>
+        <div style="width:36px;height:36px;background:rgba(255,255,255,0.3);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:11px;">JD</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">Jake D.</div>
+          <div style="font-size:11px;opacity:0.8;">Run a 5K</div>
+        </div>
+        <!-- No stats button here -->
+      </div>
+      <!-- Messages -->
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;min-height:180px;">
+        <div style="align-self:flex-end;background:#4a7c59;color:#fff;padding:8px 12px;border-radius:14px 14px 4px 14px;font-size:12px;max-width:70%;">Ran 3km today! Feeling good 🔥</div>
+        <div style="align-self:flex-start;background:#fff;color:#333;padding:8px 12px;border-radius:14px 14px 14px 4px;font-size:12px;max-width:70%;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Great work! Keep it up!</div>
+        <div style="align-self:flex-end;background:#4a7c59;color:#fff;padding:8px 12px;border-radius:14px 14px 4px 14px;font-size:12px;max-width:70%;">Thanks 💪</div>
+      </div>
+      <!-- Input bar — stats button bottom-left -->
+      <div style="background:#fff;padding:10px 12px;display:flex;align-items:center;gap:8px;border-top:1px solid #eee;">
+        <div style="width:36px;height:36px;background:#f0f4f1;border:1.5px solid #4a7c59;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:15px;">📊</div>
+        <input style="flex:1;border:1px solid #ddd;border-radius:20px;padding:8px 14px;font-size:12px;outline:none;" placeholder="How's your progress?">
+        <div style="width:36px;height:36px;background:#4a7c59;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;">↑</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Stats button moves from the top-right header into the input bar on the left — keeps the header clean and puts the action close to where you're typing.</p>

@@ -1,0 +1,120 @@
+<h2>Milestone Picker Refinement</h2>
+<p class="subtitle">Compact, TickTick-inspired directions with inline expansion and date-row pickers</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Option A: Compact List</div>
+        <div class="mockup-body" style="padding:14px;background:#f6f7f4;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;background:white;border:1px solid #d9dfd6;border-radius:10px;padding:10px 12px;">
+              <div>
+                <div style="font-weight:600;">Time-bound</div>
+                <div style="font-size:12px;color:#667064;">Default</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <div style="background:#7da487;color:white;border-radius:999px;padding:4px 10px;font-size:12px;">Time-bound</div>
+                <div style="background:#eef1eb;color:#667064;border-radius:999px;padding:4px 10px;font-size:12px;">Open-ended</div>
+              </div>
+            </div>
+
+            <div style="background:white;border:1px solid #d9dfd6;border-radius:10px;overflow:hidden;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #edf0eb;">
+                <div style="font-weight:600;">Frequency</div>
+                <div style="color:#7da487;font-size:13px;">Days per week</div>
+              </div>
+              <div style="padding:8px 12px 12px;">
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                  <div style="padding:5px 9px;border-radius:999px;border:1px solid #7da487;background:#7da487;color:white;font-size:12px;">Days per week</div>
+                  <div style="padding:5px 9px;border-radius:999px;border:1px solid #d9dfd6;background:#f6f7f4;color:#667064;font-size:12px;">Daily</div>
+                  <div style="padding:5px 9px;border-radius:999px;border:1px solid #d9dfd6;background:#f6f7f4;color:#667064;font-size:12px;">Weekly</div>
+                  <div style="padding:5px 9px;border-radius:999px;border:1px solid #d9dfd6;background:#f6f7f4;color:#667064;font-size:12px;">Custom days</div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                  <div style="padding:6px 10px;border-radius:8px;background:#7da487;color:white;font-size:12px;">1</div>
+                  <div style="padding:6px 10px;border-radius:8px;background:#eef1eb;color:#667064;font-size:12px;">2</div>
+                  <div style="padding:6px 10px;border-radius:8px;background:#eef1eb;color:#667064;font-size:12px;">3</div>
+                  <div style="padding:6px 10px;border-radius:8px;background:#eef1eb;color:#667064;font-size:12px;">4</div>
+                  <div style="padding:6px 10px;border-radius:8px;background:#eef1eb;color:#667064;font-size:12px;">5</div>
+                  <div style="padding:6px 10px;border-radius:8px;background:#eef1eb;color:#667064;font-size:12px;">6</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:white;border:1px solid #d9dfd6;border-radius:10px;overflow:hidden;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #edf0eb;">
+                <div style="font-weight:600;">Start date</div>
+                <div style="background:#f6f7f4;border:1px solid #d9dfd6;border-radius:8px;padding:6px 10px;font-size:12px;">Today, Apr 1</div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid #edf0eb;">
+                <div style="font-weight:600;">No end date</div>
+                <div style="width:36px;height:20px;border-radius:999px;background:#d9dfd6;position:relative;"><div style="width:16px;height:16px;border-radius:999px;background:white;position:absolute;left:2px;top:2px;"></div></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;">
+                <div style="font-weight:600;">End date</div>
+                <div style="background:#f6f7f4;border:1px solid #d9dfd6;border-radius:8px;padding:6px 10px;font-size:12px;">Pick date</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Option A</h3>
+      <p>Most compact. Everything reads like a settings sheet with inline expansion inside the same block.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Option B: Sectioned Submenus</div>
+        <div class="mockup-body" style="padding:14px;background:#f6f7f4;">
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;background:#7da487;color:white;border-radius:10px;padding:10px 12px;text-align:center;font-weight:600;">Time-bound</div>
+              <div style="flex:1;background:white;color:#667064;border:1px solid #d9dfd6;border-radius:10px;padding:10px 12px;text-align:center;font-weight:600;">Open-ended</div>
+            </div>
+
+            <div style="background:white;border:1px solid #d9dfd6;border-radius:12px;padding:10px 12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <div style="font-weight:600;">Frequency</div>
+                  <div style="font-size:12px;color:#667064;">Day per week</div>
+                </div>
+                <div style="color:#7da487;">›</div>
+              </div>
+              <div style="display:flex;gap:6px;margin-top:10px;">
+                <div style="padding:7px 11px;border-radius:10px;background:#eef1eb;color:#667064;font-size:12px;">1 day</div>
+                <div style="padding:7px 11px;border-radius:10px;background:#7da487;color:white;font-size:12px;">2 days</div>
+                <div style="padding:7px 11px;border-radius:10px;background:#eef1eb;color:#667064;font-size:12px;">3 days</div>
+              </div>
+            </div>
+
+            <div style="background:white;border:1px solid #d9dfd6;border-radius:12px;padding:10px 12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #edf0eb;">
+                <div style="font-weight:600;">Duration</div>
+                <div style="font-size:12px;color:#667064;">Time-bound</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+                <div style="background:#f6f7f4;border:1px solid #d9dfd6;border-radius:10px;padding:8px 10px;">
+                  <div style="font-size:11px;color:#667064;">Start</div>
+                  <div style="font-size:12px;font-weight:600;">Today</div>
+                </div>
+                <div style="background:#f6f7f4;border:1px solid #d9dfd6;border-radius:10px;padding:8px 10px;">
+                  <div style="font-size:11px;color:#667064;">End</div>
+                  <div style="font-size:12px;font-weight:600;">Select</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Option B</h3>
+      <p>Still compact, but more card-like. Better if you want slightly more breathing room and stronger grouping.</p>
+    </div>
+  </div>
+</div>

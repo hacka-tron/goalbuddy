@@ -1,0 +1,54 @@
+<h2>Buddy Tabs — Reorder + Unread Badge</h2>
+<p class="subtitle">New order: My Goals · Coop · Coaching. Badge shows on the tab with new messages.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Current</div>
+    <div class="mockup-body" style="padding:0;font-family:sans-serif;background:#f5f5f5;border-radius:8px;overflow:hidden;">
+      <div style="background:#fff;border-bottom:1px solid #eee;display:flex;">
+        <div style="flex:1;padding:12px 8px;text-align:center;border-bottom:2.5px solid #4a7c59;color:#4a7c59;font-weight:700;font-size:13px;">My Goals</div>
+        <div style="flex:1;padding:12px 8px;text-align:center;border-bottom:2.5px solid transparent;color:#999;font-size:13px;">Coaching</div>
+        <div style="flex:1;padding:12px 8px;text-align:center;border-bottom:2.5px solid transparent;color:#999;font-size:13px;">Co-op</div>
+      </div>
+      <div style="padding:12px;color:#999;font-size:12px;text-align:center;">Unread count only shown as a dot on each card — no tab-level badge</div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Proposed ✦</div>
+    <div class="mockup-body" style="padding:0;font-family:sans-serif;background:#f5f5f5;border-radius:8px;overflow:hidden;">
+      <div style="background:#fff;border-bottom:1px solid #eee;display:flex;">
+        <!-- My Goals - active, no unread -->
+        <div style="flex:1;padding:12px 6px;text-align:center;border-bottom:2.5px solid #4a7c59;color:#4a7c59;font-weight:700;font-size:13px;position:relative;">
+          My Goals
+        </div>
+        <!-- Coop - inactive, no unread -->
+        <div style="flex:1;padding:12px 6px;text-align:center;border-bottom:2.5px solid transparent;color:#999;font-size:13px;position:relative;">
+          Co-op
+        </div>
+        <!-- Coaching - inactive, HAS unread -->
+        <div style="flex:1;padding:12px 6px;text-align:center;border-bottom:2.5px solid transparent;color:#999;font-size:13px;position:relative;display:flex;align-items:center;justify-content:center;gap:4px;">
+          Coaching
+          <span style="background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.4;">+3</span>
+        </div>
+      </div>
+
+      <!-- Example card to show context -->
+      <div style="padding:10px 12px;display:flex;flex-direction:column;gap:8px;">
+        <div style="background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;background:#4a7c59;border-radius:18px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;">JD</div>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;color:#222;">Jake D.</div>
+              <div style="font-size:11px;color:#888;">Run a 5K · active</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 12px 8px;color:#888;font-size:11px;">+3 means 3 new messages in Coaching since you last viewed that tab</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Badge resets to zero when you tap that tab. Shows "9+" if over 9 unread (same logic as now, just surfaced at the tab level).</p>
