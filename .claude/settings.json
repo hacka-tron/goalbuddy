@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/baselabdel-rahman/Coding/goalbuddy/scripts/restart-metro.sh >> /tmp/metro.log 2>&1",
+            "timeout": 30,
+            "async": true,
+            "statusMessage": "Restarting Metro on both emulators..."
+          }
+        ]
+      }
+    ]
+  }
+}
