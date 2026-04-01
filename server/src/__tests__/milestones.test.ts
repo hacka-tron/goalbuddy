@@ -26,6 +26,17 @@ describe('POST /milestones/', () => {
     expect(res.body.frequency).toBe('x_weekly');
     expect(res.body.days_per_week).toBe(3);
   });
+  it('creates a milestone with frequency=custom_days', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ goalId: goal.id, title: 'MWF workout', frequency: 'custom_days', customDays: '1,3,5' });
+    expect(res.status).toBe(201);
+    expect(res.body.frequency).toBe('custom_days');
+    expect(res.body.custom_days).toBe('1,3,5');
+  });
   it('returns 400 on missing title', async () => {
     const user = await seedUser();
     const goal = await seedGoal(user.id);
@@ -34,6 +45,22 @@ describe('POST /milestones/', () => {
       .set('Authorization', `Bearer ${user.token}`)
       .send({ goalId: goal.id });
     expect(res.status).toBe(400);
+  });
+  it('returns 400 on invalid goalId (not a UUID)', async () => {
+    const user = await seedUser();
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ goalId: 'not-a-uuid', title: 'Test', frequency: 'daily' });
+    expect(res.status).toBe(400);
+  });
+  it('returns 401 when unauthenticated', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .send({ goalId: goal.id, title: 'Test', frequency: 'daily' });
+    expect(res.status).toBe(401);
   });
 });
 describe('POST /milestones/ — schedule mode', () => {
@@ -128,6 +155,50 @@ describe('PATCH /milestones/:id', () => {
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('New');
   });
+  it('updates scheduleMode, startDate, and endDate', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const ms = await seedMilestone(goal.id, user.id);
+    const res = await request(app)
+      .patch(`/milestones/${ms.id}`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ scheduleMode: 'time_bound', startDate: '2026-06-01', endDate: '2026-06-30' });
+    expect(res.status).toBe(200);
+    expect(res.body.schedule_mode).toBe('time_bound');
+    expect(res.body.start_date).toBe('2026-06-01');
+    expect(res.body.end_date).toBe('2026-06-30');
+  });
+  it('returns 400 when patching to time_bound without startDate', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const ms = await seedMilestone(goal.id, user.id);
+    const res = await request(app)
+      .patch(`/milestones/${ms.id}`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ scheduleMode: 'time_bound' });
+    expect(res.status).toBe(400);
+  });
+  it('returns 400 when patching endDate before startDate', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const ms = await seedMilestone(goal.id, user.id);
+    const res = await request(app)
+      .patch(`/milestones/${ms.id}`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ scheduleMode: 'time_bound', startDate: '2026-06-30', endDate: '2026-06-01' });
+    expect(res.status).toBe(400);
+  });
+  it('returns 404 when patching another user\'s milestone', async () => {
+    const owner = await seedUser();
+    const other = await seedUser();
+    const goal = await seedGoal(owner.id);
+    const ms = await seedMilestone(goal.id, owner.id, { title: 'Original' });
+    const res = await request(app)
+      .patch(`/milestones/${ms.id}`)
+      .set('Authorization', `Bearer ${other.token}`)
+      .send({ title: 'Hijacked' });
+    expect(res.status).toBe(404);
+  });
 });
 describe('GET /milestones/goal/:goalId', () => {
   it('returns milestones with is_done_this_period', async () => {
@@ -140,6 +211,23 @@ describe('GET /milestones/goal/:goalId', () => {
     expect(res.status).toBe(200);
     expect(res.body[0].title).toBe('Daily');
     expect(res.body[0].is_done_this_period).toBe(false);
+  });
+  it('returns schedule_mode, start_date, end_date fields', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    await seedMilestone(goal.id, user.id, {
+      frequency: 'daily',
+      scheduleMode: 'time_bound',
+      startDate: '2026-05-01',
+      endDate: '2026-05-30',
+    });
+    const res = await request(app)
+      .get(`/milestones/goal/${goal.id}`)
+      .set('Authorization', `Bearer ${user.token}`);
+    expect(res.status).toBe(200);
+    expect(res.body[0].schedule_mode).toBe('time_bound');
+    expect(res.body[0].start_date).toBe('2026-05-01');
+    expect(res.body[0].end_date).toBe('2026-05-30');
   });
 });
 describe('GET /milestones/me', () => {
@@ -154,6 +242,18 @@ describe('GET /milestones/me', () => {
       .set('Authorization', `Bearer ${user.token}`);
     expect(res.status).toBe(200);
     expect(res.body.length).toBeGreaterThanOrEqual(2);
+  });
+  it('does not return other users\' milestones', async () => {
+    const user = await seedUser();
+    const other = await seedUser();
+    const goal = await seedGoal(other.id);
+    await seedMilestone(goal.id, other.id, { title: 'Other user milestone' });
+    const res = await request(app)
+      .get('/milestones/me')
+      .set('Authorization', `Bearer ${user.token}`);
+    expect(res.status).toBe(200);
+    const titles = res.body.map((m: any) => m.title);
+    expect(titles).not.toContain('Other user milestone');
   });
 });
 describe('POST /milestones/goal/:goalId/log', () => {
@@ -187,6 +287,29 @@ describe('POST /milestones/goal/:goalId/log', () => {
     expect(res.status).toBe(201);
     expect(res.body.logged).toBe(false);
   });
+  it('persists the note on the log entry', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const ms = await seedMilestone(goal.id, user.id, { frequency: 'daily' });
+    const res = await request(app)
+      .post(`/milestones/goal/${goal.id}/log`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ milestoneId: ms.id, note: 'Felt great today' });
+    expect(res.status).toBe(201);
+    expect(res.body.logged).toBe(true);
+    expect(res.body.row.note).toBe('Felt great today');
+  });
+  it('returns 404 when milestoneId does not belong to goalId', async () => {
+    const user = await seedUser();
+    const goal1 = await seedGoal(user.id);
+    const goal2 = await seedGoal(user.id);
+    const ms = await seedMilestone(goal1.id, user.id, { frequency: 'daily' });
+    const res = await request(app)
+      .post(`/milestones/goal/${goal2.id}/log`)
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ milestoneId: ms.id });
+    expect(res.status).toBe(404);
+  });
 });
 describe('DELETE /milestones/goal/:goalId/log/:milestoneId', () => {
   it('removes the log and resets is_done_this_period', async () => {
@@ -206,6 +329,15 @@ describe('DELETE /milestones/goal/:goalId/log/:milestoneId', () => {
       .set('Authorization', `Bearer ${user.token}`);
     expect(check.body.find((m: any) => m.id === ms.id).is_done_this_period).toBe(false);
   });
+  it('returns 204 even when no log exists (idempotent undo)', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const ms = await seedMilestone(goal.id, user.id, { frequency: 'daily' });
+    const res = await request(app)
+      .delete(`/milestones/goal/${goal.id}/log/${ms.id}`)
+      .set('Authorization', `Bearer ${user.token}`);
+    expect(res.status).toBe(204);
+  });
 });
 describe('GET /milestones/feed', () => {
   it('returns milestone completions for user and buddies', async () => {
@@ -221,5 +353,23 @@ describe('GET /milestones/feed', () => {
       .set('Authorization', `Bearer ${user.token}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
+  });
+  it('includes buddy completions in the feed', async () => {
+    const user = await seedUser();
+    const buddy = await seedUser();
+    const buddyGoal = await seedGoal(buddy.id, { isPublic: true });
+    // feed uses completed_at — only set for once-type milestones marked complete via PATCH
+    const buddyMs = await seedMilestone(buddyGoal.id, buddy.id, { frequency: 'once' });
+    await seedConnection(user.id, buddy.id, buddyGoal.id, { status: 'accepted' });
+    await request(app)
+      .patch(`/milestones/${buddyMs.id}`)
+      .set('Authorization', `Bearer ${buddy.token}`)
+      .send({ completed: true });
+    const res = await request(app)
+      .get('/milestones/feed')
+      .set('Authorization', `Bearer ${user.token}`);
+    expect(res.status).toBe(200);
+    const ids = res.body.map((e: any) => e.id);
+    expect(ids).toContain(buddyMs.id);
   });
 });

@@ -178,4 +178,26 @@ describe('GET /buddies/:id/goal-stats — finite milestone', () => {
     expect(stat.total_expected_finite).toBeUndefined();
     expect(stat.percent_complete).toBeUndefined();
   });
+
+  it('does not include finite stats for time_bound without end_date', async () => {
+    const user = await seedUser();
+    const buddy = await seedUser();
+    const goal = await seedGoal(buddy.id, { isPublic: true });
+    await seedMilestone(goal.id, buddy.id, {
+      frequency: 'daily',
+      scheduleMode: 'time_bound',
+      startDate: '2026-05-01',
+    });
+    const conn = await seedConnection(user.id, buddy.id, goal.id, { status: 'accepted' });
+    const res = await request(app)
+      .get(`/buddies/${conn.id}/goal-stats`)
+      .set('Authorization', `Bearer ${user.token}`);
+    expect(res.status).toBe(200);
+    const stat = res.body.milestone_stats[0];
+    expect(stat.schedule_mode).toBe('time_bound');
+    expect(stat.start_date).toBe('2026-05-01');
+    expect(stat.end_date).toBeNull();
+    expect(stat.total_expected_finite).toBeUndefined();
+    expect(stat.percent_complete).toBeUndefined();
+  });
 });

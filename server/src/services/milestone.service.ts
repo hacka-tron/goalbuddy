@@ -71,7 +71,7 @@ export class MilestoneService {
        ORDER BY m.created_at ASC`,
       [userId]
     );
-    return result.rows;
+    return result.rows.map(normalizeMilestoneDates);
   }
 
   static async getMilestonesByGoal(goalId: string, userId: string) {
@@ -108,7 +108,7 @@ export class MilestoneService {
        ORDER BY m.due_date ASC`,
       [goalId, userId]
     );
-    return result.rows;
+    return result.rows.map(normalizeMilestoneDates);
   }
 
   static async logMilestone(userId: string, goalId: string, milestoneId: string, note?: string) {
