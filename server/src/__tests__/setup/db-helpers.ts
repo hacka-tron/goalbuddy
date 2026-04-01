@@ -87,12 +87,23 @@ export async function seedGoal(userId: string, overrides: {
 export async function seedMilestone(goalId: string, userId: string, overrides: {
   title?: string;
   frequency?: string;
+  scheduleMode?: string;
+  startDate?: string;
+  endDate?: string;
 } = {}) {
   const { rows } = await testPool.query(
-    `INSERT INTO milestones (goal_id, user_id, title, frequency)
-     VALUES ($1, $2, $3, $4::milestone_frequency)
+    `INSERT INTO milestones (goal_id, user_id, title, frequency, schedule_mode, start_date, end_date)
+     VALUES ($1, $2, $3, $4::milestone_frequency, $5, $6::date, $7::date)
      RETURNING *`,
-    [goalId, userId, overrides.title ?? 'Test Milestone', overrides.frequency ?? 'daily']
+    [
+      goalId,
+      userId,
+      overrides.title ?? 'Test Milestone',
+      overrides.frequency ?? 'daily',
+      overrides.scheduleMode ?? 'open_ended',
+      overrides.startDate ?? null,
+      overrides.endDate ?? null,
+    ]
   );
   return rows[0];
 }

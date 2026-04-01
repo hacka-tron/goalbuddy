@@ -36,6 +36,86 @@ describe('POST /milestones/', () => {
     expect(res.status).toBe(400);
   });
 });
+describe('POST /milestones/ — schedule mode', () => {
+  it('defaults to open_ended with null dates when scheduleMode omitted', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ goalId: goal.id, title: 'Daily run', frequency: 'daily' });
+    expect(res.status).toBe(201);
+    expect(res.body.schedule_mode).toBe('open_ended');
+    expect(res.body.start_date).toBeNull();
+    expect(res.body.end_date).toBeNull();
+  });
+
+  it('creates a time_bound milestone with start and end dates', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({
+        goalId: goal.id,
+        title: '30-day program',
+        frequency: 'daily',
+        scheduleMode: 'time_bound',
+        startDate: '2026-05-01',
+        endDate: '2026-05-30',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.schedule_mode).toBe('time_bound');
+    expect(res.body.start_date).toBe('2026-05-01');
+    expect(res.body.end_date).toBe('2026-05-30');
+  });
+
+  it('creates a time_bound milestone with start date and no end date', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({
+        goalId: goal.id,
+        title: 'Ongoing program starting May',
+        frequency: 'weekly',
+        scheduleMode: 'time_bound',
+        startDate: '2026-05-01',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.schedule_mode).toBe('time_bound');
+    expect(res.body.start_date).toBe('2026-05-01');
+    expect(res.body.end_date).toBeNull();
+  });
+
+  it('returns 400 when time_bound has no startDate', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({ goalId: goal.id, title: 'Test', frequency: 'daily', scheduleMode: 'time_bound' });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 400 when endDate is before startDate', async () => {
+    const user = await seedUser();
+    const goal = await seedGoal(user.id);
+    const res = await request(app)
+      .post('/milestones/')
+      .set('Authorization', `Bearer ${user.token}`)
+      .send({
+        goalId: goal.id,
+        title: 'Test',
+        frequency: 'daily',
+        scheduleMode: 'time_bound',
+        startDate: '2026-05-15',
+        endDate: '2026-05-01',
+      });
+    expect(res.status).toBe(400);
+  });
+});
 describe('PATCH /milestones/:id', () => {
   it('updates milestone title', async () => {
     const user = await seedUser();
