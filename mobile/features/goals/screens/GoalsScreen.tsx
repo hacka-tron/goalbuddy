@@ -35,6 +35,7 @@ import {
 } from '../hooks';
 import { createMilestone as createMilestoneApi } from '../api';
 import { GoalCard } from '../components/GoalCard';
+import { FrequencyPickerModal } from '../components/FrequencyPickerModal';
 import { CardSkeleton } from '../../../components/ui/Skeleton';
 import { ScreenState } from '../../../components/ui/ScreenState';
 import { canGoalBeMadePublic, PUBLIC_GOAL_REQUIRES_MILESTONE_MESSAGE } from '../validation';
@@ -74,8 +75,30 @@ const FREQUENCIES: { key: Milestone['frequency']; label: string }[] = [
 
 const FREQ_LABELS: Record<Milestone['frequency'], string> = {
   daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly',
-  once: 'Once', x_weekly: '×/week', custom_days: 'Custom',
+  once: 'Once', x_weekly: 'Day per week', custom_days: 'Custom',
 };
+
+function getTodayString(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatScheduleSummary(
+  scheduleMode: 'open_ended' | 'time_bound',
+  startDate: string,
+  endDate: string,
+): string {
+  if (scheduleMode !== 'time_bound' || !startDate) return 'Open-ended';
+  const start = new Date(`${startDate}T00:00:00`);
+  const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  if (!endDate) return `Starts ${startStr}`;
+  const end = new Date(`${endDate}T00:00:00`);
+  const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${startStr} - ${endStr}`;
+}
 
 function msMatchesFilter(ms: Milestone, filter: MsFilter): boolean {
   if (filter === 'all') return true;
@@ -1055,11 +1078,30 @@ export default function GoalsScreen() {
   const [newDescription, setNewDescription] = useState('');
   const [newIsPublic, setNewIsPublic] = useState(true);
   const [newCoopOpen, setNewCoopOpen] = useState(false);
-  const [draftMilestones, setDraftMilestones] = useState<Array<{ id: string; title: string; frequency: Milestone['frequency']; daysPerWeek?: number; customDays?: string }>>([]);
+  const [draftMilestones, setDraftMilestones] = useState<Array<{
+    id: string;
+    title: string;
+    frequency: Milestone['frequency'];
+    daysPerWeek?: number;
+    customDays?: string;
+    scheduleMode: 'open_ended' | 'time_bound';
+    startDate: string;
+    endDate: string;
+    noEndDate: boolean;
+  }>>([]);
   const [msTitle, setMsTitle] = useState('');
   const [msFreq, setMsFreq] = useState<Milestone['frequency']>('daily');
   const [msDaysPerWeek, setMsDaysPerWeek] = useState(3);
   const [msCustomDays, setMsCustomDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [msEditingId, setMsEditingId] = useState<string | null>(null);
+  const [showFreqPicker, setShowFreqPicker] = useState(false);
+  const [msScheduleMode, setMsScheduleMode] = useState<'open_ended' | 'time_bound'>('time_bound');
+  const [msStartDate, setMsStartDate] = useState(getTodayString());
+  const [msEndDate, setMsEndDate] = useState('');
+  const [msNoEndDate, setMsNoEndDate] = useState(true);
+  const milestoneDraftInvalid =
+    msScheduleMode === 'time_bound' &&
+    (!msStartDate || (!msNoEndDate && (!msEndDate || msEndDate < msStartDate)));
 
   const { data: goals = [], isLoading, isError, refetch } = useGoals();
   const addMutation = useCreateGoal();
@@ -1067,7 +1109,10 @@ export default function GoalsScreen() {
   const handleCloseAdd = useCallback(() => {
     setShowAdd(false);
     setNewTitle(''); setNewCategory(''); setNewDescription(''); setNewIsPublic(true); setNewCoopOpen(false);
-    setDraftMilestones([]); setMsTitle(''); setMsFreq('once');
+    setDraftMilestones([]); setMsTitle(''); setMsFreq('daily');
+    setMsDaysPerWeek(3); setMsCustomDays([1, 2, 3, 4, 5]);
+    setMsEditingId(null); setShowFreqPicker(false);
+    setMsScheduleMode('time_bound'); setMsStartDate(getTodayString()); setMsEndDate(''); setMsNoEndDate(true);
   }, []);
 
   const handleAddGoal = async () => {
@@ -1079,10 +1124,22 @@ export default function GoalsScreen() {
     try {
       const newGoal = await addMutation.mutateAsync({
         title: newTitle, category: newCategory, description: newDescription,
-        isPublic: newCoopOpen ? true : newIsPublic, coopOpen: newCoopOpen,
+        isPublic: newCoopOpen ? true : newIsPublic,
+        coopOpen: newIsPublic && newCoopOpen,
       });
       if (draftMilestones.length > 0) {
-        await Promise.all(draftMilestones.map((ms) => createMilestoneApi(newGoal.id, ms.title, ms.frequency)));
+        await Promise.all(draftMilestones.map((ms) =>
+          createMilestoneApi(
+            newGoal.id,
+            ms.title,
+            ms.frequency,
+            ms.daysPerWeek,
+            ms.customDays,
+            ms.scheduleMode,
+            ms.startDate || undefined,
+            ms.noEndDate ? undefined : (ms.endDate || undefined),
+          )
+        ));
         qc.invalidateQueries({ queryKey: ['milestones', 'me'] });
       }
       handleCloseAdd();
@@ -1187,116 +1244,210 @@ export default function GoalsScreen() {
 
             <TouchableOpacity
               style={[s.publicRow, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setNewIsPublic(!newIsPublic)}
-              disabled={newCoopOpen}
-              activeOpacity={newCoopOpen ? 1 : 0.8}
+              onPress={() => setNewIsPublic((v) => !v)}
+              activeOpacity={0.8}
             >
               <MaterialCommunityIcons
-                name={newIsPublic || newCoopOpen ? 'eye-outline' : 'eye-off-outline'}
+                name={newIsPublic ? 'eye-outline' : 'eye-off-outline'}
                 size={20}
-                color={newIsPublic || newCoopOpen ? colors.primary : colors.textSecondary}
+                color={newIsPublic ? colors.primary : colors.textSecondary}
               />
               <View style={{ flex: 1 }}>
-                <Text style={[s.publicLabel, { color: colors.text }]}>{newIsPublic || newCoopOpen ? 'Public' : 'Private'}</Text>
+                <Text style={[s.publicLabel, { color: colors.text }]}>{newIsPublic ? 'Public' : 'Private'}</Text>
                 <Text style={[s.publicSub, { color: colors.textSecondary }]}>
-                  {newIsPublic || newCoopOpen ? 'Others can discover and buddy up' : 'Only visible to you'}
+                  {newIsPublic ? 'Others can discover and buddy up' : 'Only visible to you'}
                 </Text>
               </View>
-              <View style={[s.toggle, { backgroundColor: newIsPublic || newCoopOpen ? colors.primary : colors.border }]}>
-                <View style={[s.toggleThumb, (newIsPublic || newCoopOpen) && s.toggleThumbOn]} />
+              <View style={[s.toggle, { backgroundColor: newIsPublic ? colors.primary : colors.border }]}>
+                <View style={[s.toggleThumb, newIsPublic && s.toggleThumbOn]} />
               </View>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[s.publicRow, { backgroundColor: colors.card, borderColor: newCoopOpen ? colors.primary : colors.border }]}
-              onPress={() => {
-                const next = !newCoopOpen;
-                setNewCoopOpen(next);
-                if (next) setNewIsPublic(true);
-              }}
-            >
-              <MaterialCommunityIcons
-                name="account-multiple-outline"
-                size={20}
-                color={newCoopOpen ? colors.primary : colors.textSecondary}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[s.publicLabel, { color: colors.text }]}>Co-op Goal</Text>
-                <Text style={[s.publicSub, { color: colors.textSecondary }]}>
-                  {newCoopOpen ? 'You and a buddy work on this goal together' : 'Share ownership of this goal with a buddy'}
-                </Text>
-              </View>
-              <View style={[s.toggle, { backgroundColor: newCoopOpen ? colors.primary : colors.border }]}>
-                <View style={[s.toggleThumb, newCoopOpen && s.toggleThumbOn]} />
-              </View>
-            </TouchableOpacity>
+            {newIsPublic && (
+              <TouchableOpacity
+                style={[s.publicRow, { backgroundColor: colors.card, borderColor: newCoopOpen ? colors.primary : colors.border }]}
+                onPress={() => setNewCoopOpen((v) => !v)}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name="account-multiple-outline"
+                  size={20}
+                  color={newCoopOpen ? colors.primary : colors.textSecondary}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.publicLabel, { color: colors.text }]}>Co-op Goal</Text>
+                  <Text style={[s.publicSub, { color: colors.textSecondary }]}>
+                    {newCoopOpen ? 'You and a buddy work on this goal together' : 'Share ownership of this goal with a buddy'}
+                  </Text>
+                </View>
+                <View style={[s.toggle, { backgroundColor: newCoopOpen ? colors.primary : colors.border }]}>
+                  <View style={[s.toggleThumb, newCoopOpen && s.toggleThumbOn]} />
+                </View>
+              </TouchableOpacity>
+            )}
 
             {/* Milestones section */}
-            <Text style={[s.inputLabel, { color: colors.text, marginTop: 16 }]}>
-              Milestones{' '}
-              <Text style={{ color: colors.textSecondary, fontWeight: FW.regular }}>(optional)</Text>
-            </Text>
+            <View style={s.msSectionHeader}>
+              <View>
+                <Text style={[s.inputLabel, { color: colors.text, marginTop: 0 }]}>Milestones</Text>
+                <Text style={s.msRequired}>* at least 1 required</Text>
+              </View>
+            </View>
 
             {draftMilestones.map((ms) => (
-              <View key={ms.id} style={[s.msDraftRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <View style={[s.msDraftFreqBadge, { backgroundColor: colors.primaryLight }]}>
-                  <Text style={[s.msDraftFreqText, { color: colors.primary }]}>{FREQ_LABELS[ms.frequency]}</Text>
+              <View key={ms.id} style={[s.msDraftRow, { backgroundColor: colors.primaryLight, borderColor: colors.border }]}>
+                <View style={[s.msDraftFreqBadge, { backgroundColor: colors.primary }]}>
+                  <Text style={[s.msDraftFreqText, { color: '#fff' }]}>{FREQ_LABELS[ms.frequency]}</Text>
                 </View>
-                <Text style={[s.msDraftTitle, { color: colors.text }]} numberOfLines={1}>{ms.title}</Text>
-                <TouchableOpacity onPress={() => setDraftMilestones((prev) => prev.filter((m) => m.id !== ms.id))}>
-                  <MaterialCommunityIcons name="close-circle" size={18} color={colors.textSecondary} />
-                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.msDraftTitle, { color: colors.text }]} numberOfLines={1}>{ms.title}</Text>
+                  <Text style={[s.msDraftSchedule, { color: colors.textSecondary }]}>
+                    {formatScheduleSummary(ms.scheduleMode, ms.startDate, ms.endDate)}
+                  </Text>
+                </View>
+                <View style={s.msDraftActions}>
+                  <TouchableOpacity
+                    style={[s.msDraftActionBtn, { borderColor: colors.border }]}
+                    onPress={() => {
+                      setMsTitle(ms.title);
+                      setMsFreq(ms.frequency);
+                      setMsDaysPerWeek(ms.daysPerWeek ?? 3);
+                      setMsCustomDays(ms.customDays ? ms.customDays.split(',').map(Number) : [1, 2, 3, 4, 5]);
+                      setMsScheduleMode(ms.scheduleMode);
+                      setMsStartDate(ms.startDate);
+                      setMsEndDate(ms.endDate);
+                      setMsNoEndDate(ms.noEndDate);
+                      setMsEditingId(ms.id);
+                    }}
+                  >
+                    <MaterialCommunityIcons name="pencil-outline" size={14} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[s.msDraftActionBtn, { borderColor: '#EF4444' }]}
+                    onPress={() => setDraftMilestones((prev) => prev.filter((m) => m.id !== ms.id))}
+                  >
+                    <MaterialCommunityIcons name="close" size={14} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
 
-            <View style={[s.msDraftAddForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[s.msDraftAddForm, { backgroundColor: colors.background, borderColor: colors.border, borderStyle: 'dashed' }]}>
               <TextInput
-                style={[s.msDraftInput, { color: colors.text, borderColor: colors.border }]}
+                style={[s.msDraftInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.card }]}
                 value={msTitle}
                 onChangeText={setMsTitle}
                 placeholder="e.g. Go for a 30-min run"
                 placeholderTextColor={colors.textSecondary}
               />
-              <View style={s.msDraftFreqRow}>
-                {FREQUENCIES.map((f) => (
-                  <TouchableOpacity
-                    key={f.key}
-                    style={[
-                      s.msDraftFreqChip,
-                      { borderColor: colors.border },
-                      msFreq === f.key && { backgroundColor: colors.primary, borderColor: colors.primary },
-                    ]}
-                    onPress={() => setMsFreq(f.key)}
-                  >
-                    <Text style={[s.msDraftFreqChipText, { color: msFreq === f.key ? '#fff' : colors.textSecondary }]}>
-                      {f.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={[s.msDraftAddBtn, { backgroundColor: msTitle.trim() ? colors.primary : colors.border }]}
-                  onPress={() => {
-                    if (!msTitle.trim()) return;
-                    setDraftMilestones((prev) => [...prev, { id: Date.now().toString(), title: msTitle.trim(), frequency: msFreq }]);
-                    setMsTitle('');
-                    setMsFreq('once');
-                  }}
-                  disabled={!msTitle.trim()}
-                >
-                  <MaterialCommunityIcons name="plus" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={[s.msFreqRow, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => setShowFreqPicker(true)}
+                activeOpacity={0.8}
+              >
+                <View style={s.msFreqRowLeft}>
+                  <MaterialCommunityIcons name="repeat" size={16} color={colors.textSecondary} />
+                  <Text style={[s.msFreqRowLabel, { color: colors.text }]}>Frequency</Text>
+                </View>
+                <View style={s.msFreqRowRight}>
+                  <Text style={[s.msFreqRowValue, { color: colors.primary }]}>{FREQ_LABELS[msFreq]}</Text>
+                  <MaterialCommunityIcons name="chevron-right" size={16} color={colors.textSecondary} />
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[s.msDraftAddBtn, { backgroundColor: msTitle.trim() ? colors.primary : colors.border }]}
+                onPress={() => {
+                  if (!msTitle.trim()) return;
+                  const customDaysStr = msFreq === 'custom_days'
+                    ? [...msCustomDays].sort((a, b) => a - b).join(',')
+                    : undefined;
+                  const effectiveEndDate = msNoEndDate ? '' : msEndDate;
+
+                  if (msEditingId) {
+                    setDraftMilestones((prev) =>
+                      prev.map((m) =>
+                        m.id === msEditingId
+                          ? {
+                              ...m,
+                              title: msTitle.trim(),
+                              frequency: msFreq,
+                              daysPerWeek: msFreq === 'x_weekly' ? msDaysPerWeek : undefined,
+                              customDays: customDaysStr,
+                              scheduleMode: msScheduleMode,
+                              startDate: msStartDate,
+                              endDate: effectiveEndDate,
+                              noEndDate: msNoEndDate,
+                            }
+                          : m
+                      )
+                    );
+                    setMsEditingId(null);
+                  } else {
+                    setDraftMilestones((prev) => [
+                      ...prev,
+                      {
+                        id: Date.now().toString(),
+                        title: msTitle.trim(),
+                        frequency: msFreq,
+                        daysPerWeek: msFreq === 'x_weekly' ? msDaysPerWeek : undefined,
+                        customDays: customDaysStr,
+                        scheduleMode: msScheduleMode,
+                        startDate: msStartDate,
+                        endDate: effectiveEndDate,
+                        noEndDate: msNoEndDate,
+                      },
+                    ]);
+                  }
+
+                  setMsTitle('');
+                  setMsFreq('daily');
+                  setMsDaysPerWeek(3);
+                  setMsCustomDays([1, 2, 3, 4, 5]);
+                  setMsScheduleMode('time_bound');
+                  setMsStartDate(getTodayString());
+                  setMsEndDate('');
+                  setMsNoEndDate(true);
+                }}
+                disabled={!msTitle.trim() || milestoneDraftInvalid}
+              >
+                <MaterialCommunityIcons name={msEditingId ? 'check' : 'plus'} size={16} color="#fff" />
+                <Text style={s.msDraftAddBtnText}>{msEditingId ? 'Update Milestone' : '+ Add Milestone'}</Text>
+              </TouchableOpacity>
             </View>
 
+            <FrequencyPickerModal
+              visible={showFreqPicker}
+              frequency={msFreq}
+              daysPerWeek={msDaysPerWeek}
+              customDays={msCustomDays}
+              scheduleMode={msScheduleMode}
+              startDate={msStartDate}
+              endDate={msEndDate}
+              noEndDate={msNoEndDate}
+              onSelect={(freq, dpw, cd) => {
+                setMsFreq(freq);
+                setMsDaysPerWeek(dpw);
+                setMsCustomDays(cd);
+              }}
+              onScheduleChange={(mode, sd, ed, nEd) => {
+                setMsScheduleMode(mode);
+                setMsStartDate(sd);
+                setMsEndDate(ed);
+                setMsNoEndDate(nEd);
+              }}
+              onClose={() => setShowFreqPicker(false)}
+            />
+
             <TouchableOpacity
-              style={[s.saveBtn, { backgroundColor: colors.primary, marginTop: 16 }, (!newTitle || !newCategory) && { opacity: 0.5 }]}
+              style={[s.saveBtn, { backgroundColor: colors.primary, marginTop: 16 }, (!newTitle || !newCategory || draftMilestones.length === 0) && { opacity: 0.5 }]}
               onPress={handleAddGoal}
-              disabled={!newTitle || !newCategory || addMutation.isPending}
+              disabled={!newTitle || !newCategory || draftMilestones.length === 0 || addMutation.isPending}
             >
               {addMutation.isPending
                 ? <ActivityIndicator color="#fff" size="small" />
                 : <Text style={s.saveBtnText}>
-                    Save Goal{draftMilestones.length > 0 ? ` + ${draftMilestones.length} milestone${draftMilestones.length > 1 ? 's' : ''}` : ''}
+                    Save Goal + {draftMilestones.length} milestone{draftMilestones.length !== 1 ? 's' : ''}
                   </Text>}
             </TouchableOpacity>
           </ScrollView>
@@ -1424,16 +1575,24 @@ const makeStyles = (colors: ColorPalette) => StyleSheet.create({
   saveBtnText:      { color: '#fff', fontWeight: FW.bold, fontSize: FS.body, lineHeight: LH.body },
 
   // Draft milestones in "New Goal" modal
+  msSectionHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
+  msRequired:       { fontSize: FS.caption, lineHeight: LH.caption, color: '#EF4444', fontWeight: FW.semibold },
   msDraftRow:       { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, padding: 10, borderWidth: 1, marginBottom: 2 },
   msDraftFreqBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   msDraftFreqText:  { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.bold },
   msDraftTitle:     { flex: 1, fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.medium },
+  msDraftSchedule:  { fontSize: FS.caption, lineHeight: LH.caption, marginTop: 2 },
+  msDraftActions:   { flexDirection: 'row', gap: 6 },
+  msDraftActionBtn: { width: 26, height: 26, borderWidth: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },
   msDraftAddForm:   { borderRadius: 12, padding: 10, gap: 8, borderWidth: 1 },
   msDraftInput:     { borderWidth: 1, borderRadius: 8, padding: 10, fontSize: FS.secondary, lineHeight: LH.secondary },
-  msDraftFreqRow:   { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  msDraftFreqChip:  { flex: 1, paddingVertical: 6, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
-  msDraftFreqChipText: { fontSize: FS.caption, lineHeight: LH.caption, fontWeight: FW.semibold },
-  msDraftAddBtn:    { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  msFreqRow:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, paddingHorizontal: 12, borderWidth: 1, borderRadius: 8 },
+  msFreqRowLeft:    { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  msFreqRowLabel:   { fontSize: FS.secondary, lineHeight: LH.secondary },
+  msFreqRowRight:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  msFreqRowValue:   { fontSize: FS.secondary, lineHeight: LH.secondary, fontWeight: FW.semibold },
+  msDraftAddBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8 },
+  msDraftAddBtnText: { color: '#fff', fontSize: FS.secondary, fontWeight: FW.semibold },
 
   // Add goal screen
   addGoalScreen:    { flex: 1 },

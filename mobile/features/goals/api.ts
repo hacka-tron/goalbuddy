@@ -60,10 +60,13 @@ export const createMilestone = (
   frequency: Milestone['frequency'],
   daysPerWeek?: number,
   customDays?: string,
+  scheduleMode?: 'open_ended' | 'time_bound',
+  startDate?: string,
+  endDate?: string,
 ): Promise<Milestone> =>
   apiFetch('/milestones', {
     method: 'POST',
-    body: JSON.stringify({ goalId, title, frequency, daysPerWeek, customDays }),
+    body: JSON.stringify({ goalId, title, frequency, daysPerWeek, customDays, scheduleMode, startDate, endDate }),
   });
 
 export const requestBuddy = (goalId: string): Promise<unknown> =>
