@@ -128,8 +128,8 @@ export default function BuddiesScreen() {
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'my_goals', label: 'My Goals' },
-    { key: 'coaching', label: 'Coaching' },
     { key: 'coop', label: 'Co-op' },
+    { key: 'coaching', label: 'Coaching' },
   ];
 
   const emptyMessages: Record<TabKey, { title: string; body: string }> = {
@@ -177,7 +177,7 @@ export default function BuddiesScreen() {
                   {t.label}
                 </Text>
                 {badge > 0 && (
-                  <View style={[s.tabBadge, { backgroundColor: colors.primary }]}>
+                  <View style={[s.tabBadge, { backgroundColor: '#ef4444' }]}>
                     <Text style={s.tabBadgeText}>{badge > 9 ? '9+' : badge}</Text>
                   </View>
                 )}
