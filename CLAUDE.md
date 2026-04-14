@@ -223,6 +223,19 @@ cd mobile && npx expo start
 ## Test Accounts
 - `bagelbogel@bagelbogel.com` / `1234`
 
+## Feature Catalog
+
+`docs/feature-catalog.md` is the source of truth for all user-facing product features.
+
+**This file must be updated whenever:**
+- A new feature is added
+- An existing feature's behavior changes (e.g. new validation rule, new field, changed UI)
+- A feature is removed
+
+Update the catalog in the **same commit** as the code change. Never let it drift from the actual product state. The catalog is written from a product/customer perspective — describe what the user sees and can do, not implementation details.
+
+---
+
 ## Workflow
 - After completing a major feature or fix, ask: "Should I commit and push these changes?"
 - Commits should be atomic and focused on one logical change
