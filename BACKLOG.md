@@ -39,6 +39,7 @@ Layout: sidebar (navigation, your spaces, spaces you support, profile) · the pa
 - [x] Window sizes: four layouts from wide desktop to phone width (web 14)
 - [ ] Not drawn for web yet: dark mode, onboarding, empty states, focus timer, Pro upgrade
 - [x] Owner review 2026-10-10: "too busy", and spaces should focus on the chat. Done: spaces are chat-first (list in a narrow panel that folds away); sidebar cut to Today, Upcoming, Supporting, Discover and Spaces, with the bell and profile at the bottom; Today's margin shows only "Check in on" and spaces with new messages; selecting and item details moved to Today; fewer chips, buttons and notes throughout
+- [x] Owner follow-up 2026-10-10: the simplified version felt empty and unengaging. Middle ground: spaces stay chat-first, with the space's goals pinned above the chat and the list plus who's around in the side panel; Today brings back goal names, faces, reactions, a weekly-review banner, recent notes and "This week" progress; the sidebar lists the people you support again; Discover, adding and the weekly review regain their extra detail
 - [ ] Redraw phone screen 3 chat-first to match (chat as the main view, the list as a collapsed strip above it)
 
 ## 2. Design system (after web)

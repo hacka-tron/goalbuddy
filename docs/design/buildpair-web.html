@@ -624,14 +624,32 @@ footer.end p { color: var(--muted); margin: 0 0 8px; }
 .spec .cap { font-size: 12px; font-weight: 600; color: #5b6272; font-family: var(--font-ui); }
 
 /* Space: chat is the page */
-.mn.app.space { grid-template-columns: 224px minmax(0, 1fr) 260px; }
+.mn.app.space { grid-template-columns: 224px minmax(0, 1fr) 280px; }
+.mn .banner { display: flex; align-items: center; gap: 12px; background: var(--tint); border-radius: 12px; padding: 10px 12px; color: var(--note-ink); }
+.mn .banner b { font-size: 13px; }
+.mn .banner .sub { color: #46548a; }
+.mn .banner .tbtn { margin-left: auto; }
+.mn .bic { width: 32px; height: 32px; border-radius: 9px; background: #fff; color: var(--blue); display: grid; place-items: center; flex: none; }
+.mn .bic svg { width: 17px; height: 17px; }
+.mn .wkcard { display: grid; gap: 7px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.mn .wkcard .g-meta b { color: var(--ink); font-weight: 600; }
+.mn .pins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px 24px; border-bottom: 1px solid var(--line); background: #fbfbfd; }
+.mn .pin { display: grid; gap: 7px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 9px 11px; font-size: 13px; align-content: start; }
+.mn .pin .sub { font-size: 11px; }
+.mn .pillbtn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--blue); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; white-space: nowrap; }
+.mn .pillbtn svg { width: 15px; height: 15px; }
+.mn .ppl { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; align-items: center; padding: 5px 0; font-size: 13px; }
+.mn .ppl .av { width: 24px; height: 24px; font-size: 10px; position: relative; }
+.mn .ppl .av i { position: absolute; right: -1px; bottom: -1px; width: 8px; height: 8px; border-radius: 50%; background: #2fb36b; border: 2px solid #fbfbfd; }
+.mn .ppl .sub { font-size: 11px; }
+.mn .rp.slim .lbl { margin-bottom: 2px; }
 .mn .chatpane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #fff; }
 .mn .cph { display: flex; align-items: center; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--line); }
 .mn .cph b { font-size: 16px; }
 .mn .cph .tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.mn .cthread { flex: 1; min-height: 0; overflow: hidden; display: grid; gap: 14px; align-content: end; padding: 18px 24px; max-width: 660px; width: 100%; box-sizing: border-box; margin-inline: auto; font-size: 14px; }
+.mn .cthread { flex: 1; min-height: 0; overflow: hidden; display: grid; gap: 12px; align-content: end; padding: 14px 24px; max-width: 700px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px); mask-image: linear-gradient(to bottom, transparent, #000 28px); width: 100%; box-sizing: border-box; margin-inline: auto; font-size: 14px; }
 .mn .cthread .note, .mn .cthread .update-msg { font-size: 14px; }
-.mn .ccompose { display: flex; gap: 8px; align-items: center; padding: 12px 24px 18px; max-width: 660px; width: 100%; box-sizing: border-box; margin-inline: auto; }
+.mn .ccompose { display: flex; gap: 8px; align-items: center; padding: 10px 24px 16px; max-width: 700px; width: 100%; box-sizing: border-box; margin-inline: auto; }
 .mn .ccompose .field { flex: 1; border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; color: var(--faint); font-size: 14px; }
 .mn .ccompose .tool { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--sub); }
 .mn .ccompose .tool svg { width: 17px; height: 17px; }
@@ -693,7 +711,7 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
       <tr><td>Today, grouped by space</td><td>The middle column, due items only; hover a row for quick actions.</td><td><a href="#w1">1</a></td></tr>
       <tr><td>Add bar, natural language, scheduler, space picker</td><td>Add bar at the top of Today (Q from anywhere); sheets become popovers.</td><td><a href="#w2">2</a></td></tr>
       <tr><td>Spaces tab</td><td>The "Spaces" list in the sidebar.</td><td><a href="#w1">1</a></td></tr>
-      <tr><td>Inside a space</td><td>The chat is the page; open items sit in a narrow panel that folds away.</td><td><a href="#w3">3</a></td></tr>
+      <tr><td>Inside a space</td><td>The chat leads, with the space's goals pinned above it; the list and who's around sit in a side panel.</td><td><a href="#w3">3</a></td></tr>
       <tr><td>Reactions, update notes, skip reasons</td><td>In the chat. Hover a reaction to see who sent it.</td><td><a href="#w3">3</a></td></tr>
       <tr><td>Long-press, action bar, ••• menu</td><td>Click to select, a floating action bar, right-click for the full menu.</td><td><a href="#w4">4</a></td></tr>
       <tr><td>Habit detail <span class="new">new</span></td><td>Opens in Today's margin.</td><td><a href="#w5">5</a></td></tr>
@@ -712,52 +730,57 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
 <!-- W1 TODAY -->
 <section class="step" id="w1" style="grid-template-columns:1fr">
   <div class="explain" style="max-width:72ch">
-    <h2>1. Today: your list, and who's waiting on you</h2>
-    <p>Today is where you plan and tick things off. The margin stays quiet: people who need a check-in, and a short list of spaces with new messages.</p>
+    <h2>1. Today: your list, your progress, your people</h2>
+    <p>Today is where you plan and tick things off. The margin keeps your people and your progress in view: who needs a check-in, what they just said, and how the week's goals are moving.</p>
   </div>
   <div class="browser-wrap"><div class="browser xl">
     <div class="chrome"><i></i><i></i><i></i><span class="url">buildpair.app/today</span></div>
     <div class="mn app">
       <nav class="sb" data-on="today"></nav>
       <main class="pane">
-        <div class="ph"><div><h3>Today</h3><div class="sub">Saturday, October 10</div></div>
+        <div class="ph"><div><h3>Today</h3><div class="sub">Saturday, October 10 · 5 left · 1 done</div></div>
           <div class="tools"><span class="vseg"><span class="on">List</span><span>Week</span></span></div></div>
-        <div class="addbar"><span data-ic="plus"></span>Add a to-do, habit or goal<span class="k">Q</span></div>
+        <div class="banner"><span class="bic"><span data-ic="review"></span></span><div style="min-width:0"><b>Your weekly review is ready</b><div class="sub">3 shared spaces · about 5 minutes. Sam and Chloe replied to last week's.</div></div><span class="tbtn pri">Start</span></div>
+        <div class="addbar"><span data-ic="plus"></span>Add a to-do, habit or goal. Try "gym tomorrow 7am #life"<span class="k">Q</span></div>
         <div>
-          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#3557d6">L</span>Ledgerly</span></div>
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#3557d6">L</span>Ledgerly</span><span class="sp-who"><span class="faces"><i style="background:#c47f0c">S</i><i style="background:#2f6f6a">C</i><i style="background:#8a5a2b">T</i><i style="background:#b0487a">A</i></span><span class="meta">1 of 3 done</span></span></div>
           <div style="margin-top:6px">
-            <div class="todo w"><span class="ck"></span><div>Send invoice to Northwind</div><span class="due late">Yesterday</span></div>
-            <div class="todo w"><span class="ck on"></span><div class="done-t">Fix invoice PDF bug</div><span class="due"></span></div>
-            <div class="todo w hov"><span class="ck"></span><div>Email 3 beta users</div><span class="rowtools"><span title="Schedule"><span data-ic="cal"></span></span><span title="Skip today"><span data-ic="skip"></span></span><span title="More"><span data-ic="dots"></span></span></span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Send invoice to Northwind</div><div class="for">First 10 paying users</div></div><span class="due late">Yesterday</span></div>
+            <div class="todo w"><span class="ck on"></span><div><div class="done-t">Fix invoice PDF bug<span class="tag">Jira</span></div><div class="for">Launch v1 · 🔥 3</div></div><span class="due">Done 9:12 AM</span></div>
+            <div class="todo w hov"><span class="ck"></span><div><div>Email 3 beta users</div><div class="for">First 10 paying users</div></div><span class="rowtools"><span title="Schedule"><span data-ic="cal"></span></span><span title="Update"><span data-ic="pencil"></span></span><span title="Skip today"><span data-ic="skip"></span></span><span title="More"><span data-ic="dots"></span></span></span></div>
           </div>
         </div>
         <div>
-          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#2f8f5b">L</span>Life</span></div>
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#2f8f5b">L</span>Life</span><span class="sp-who"><span class="faces"><i style="background:#c97a9e">J</i><i style="background:#5d8aa8">K</i><i style="background:#8a5a2b">T</i></span><span class="meta">0 of 2 done</span></span></div>
           <div style="margin-top:6px">
-            <div class="todo w"><span class="ck"></span><div>Pick up kids from daycare</div><span class="due">5:30 PM</span></div>
-            <div class="todo w"><span class="ck"></span><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><span class="due"></span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Pick up kids from daycare</div></div><span class="due">5:30 PM</span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><div class="for">Habit · 2 of 4 this week · Jordan's taking the kids</div></div><span class="due">9:00 AM</span></div>
           </div>
         </div>
         <div>
-          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#5d6474">P</span>Private</span></div>
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#5d6474">P</span>Private</span><span class="sp-who"><span data-ic="lock"></span>Only me</span></div>
           <div style="margin-top:6px">
-            <div class="todo w"><span class="ck"></span><div>Call the accountant</div><span class="due"></span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Call the accountant</div></div><span class="due">Any time</span></div>
           </div>
         </div>
       </main>
       <aside class="rp">
-        <div class="rb" style="padding-top:18px;gap:16px">
+        <div class="rb" style="padding-top:18px;gap:14px">
           <div class="needs">
-            <div class="needs-h">Check in on</div>
-            <div class="need"><div class="av" style="background:#c0392b">A</div><span><b>Alex</b> · quiet for 9 days</span><span class="go">Check in</span></div>
-            <div class="need"><div class="av" style="background:#7a4fb5">P</div><span><b>Priya</b> wrote her reflection</span><span class="go">Reply</span></div>
+            <div class="needs-h cl"><span data-ic="chevD" class="chev"></span>Check in on · 2</div>
+            <div class="need"><div class="av" style="background:#c0392b">A</div><span><b>Alex</b> · Marathon training quiet for 9 days</span><span class="go">Check in</span></div>
+            <div class="need"><div class="av" style="background:#7a4fb5">P</div><span><b>Priya</b> wrote her weekly reflection</span><span class="go">Reply</span></div>
           </div>
-          <div style="display:grid;gap:2px">
-            <div class="grp-h">New in your spaces</div>
-            <div class="chats">
-              <div class="chat" style="grid-template-columns:28px 1fr auto;padding:8px 0"><span class="sp-ico" style="background:#2f8f5b;width:26px;height:26px;font-size:12px;border-radius:7px">L</span><div style="min-width:0"><div class="t" style="font-size:13px">Life</div><div class="p unread">Jordan: I can take the kids Saturday…</div></div><div class="r">20m<span class="dot-u"></span></div></div>
-              <div class="chat" style="grid-template-columns:28px 1fr auto;padding:8px 0"><span class="sp-ico" style="background:#3557d6;width:26px;height:26px;font-size:12px;border-radius:7px">L</span><div style="min-width:0"><div class="t" style="font-size:13px">Ledgerly</div><div class="p unread">Sam: That was the bug blocking two…</div></div><div class="r">1h<span class="dot-u"></span></div></div>
-            </div>
+          <div class="grp-h">Latest from your people</div>
+          <div class="margin"><div class="av" style="background:#c97a9e">J</div><div class="note"><div>I can take the kids Saturday morning so you can go.</div><span class="who">Jordan in Life · 20 min ago</span></div></div>
+          <div class="margin"><div class="av" style="background:#c47f0c">S</div><div class="note"><div>That was the bug blocking two of your beta users. Tell them!</div><span class="who">Sam in Ledgerly · 1 hr ago</span></div></div>
+          <div class="grp-h">This week</div>
+          <div class="wkcard">
+            <div class="g-meta"><span><b>Launch v1</b> · Ledgerly</span><span>62%</span></div>
+            <div class="bar"><i style="width:62%"></i></div>
+            <div class="g-meta"><span><b>Plan Lisbon trip</b> · Life</span><span>3 of 7</span></div>
+            <div class="bar"><i style="width:43%"></i></div>
+            <div class="g-meta"><span><b>Gym</b> · Life</span><span class="habit-dots" style="margin:0"><i class="d"></i><i class="d"></i><i></i><i></i></span></div>
           </div>
         </div>
       </aside>
@@ -765,9 +788,10 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
   </div></div>
   <div class="explain" style="max-width:72ch">
     <ul>
-      <li><b>Sidebar:</b> four places (Today, Upcoming, Supporting, Discover) and your spaces. The bell and your profile sit at the bottom. Search on <span class="kk">⌘K</span> reaches everything else.</li>
-      <li><b>The list</b> shows only what's due today, grouped by space. Hovering a row shows its quick actions, which stand in for the phone's long-press.</li>
-      <li><b>The margin</b> holds two things: people to check in on, and spaces with new messages. Click a space to open its chat.</li>
+      <li><b>Sidebar:</b> Today, Upcoming, Supporting and Discover, then your spaces and the people you support, with unread dots and request counts. The bell and your profile sit at the bottom; <span class="kk">⌘K</span> reaches everything.</li>
+      <li><b>The list</b> keeps the useful detail from the phone: which goal each to-do moves, who's in each space, due times, overdue in red, and reactions on things you finished. Hovering a row shows its quick actions.</li>
+      <li><b>A banner</b> appears for things worth doing now, like the weekly review on Friday or Saturday. Dismiss it and it's gone until next week.</li>
+      <li><b>The margin:</b> people to check in on, the latest notes from your spaces (click one to open that chat), and this week's goals and habits moving.</li>
     </ul>
   </div>
 </section>
@@ -857,6 +881,13 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
         <div class="sub">↑ ↓ to choose · ↵ to pick · type # in the add bar to skip this</div>
       </div>
     </div>
+    <div class="spec mn"><span class="cap">Q on any other screen</span>
+      <div class="pop static" style="width:330px">
+        <div class="addbar focus" style="font-size:14px"><span data-ic="plus"></span><span>Draft pricing page <span class="tok">tomorrow</span></span><span class="caret" style="margin-left:-6px"></span></div>
+        <div class="qa-tools"><span class="qt on"><span data-ic="cal"></span>Sun, Oct 11</span><span class="qt"><span class="sp-ico" style="background:#3557d6;width:16px;height:16px;font-size:9px;border-radius:4px">L</span>Ledgerly</span></div>
+        <div class="sub">Opens as a small box at the top of the screen. Inside a space it defaults to that space; elsewhere to the last one you used.</div>
+      </div>
+    </div>
   </div>
   <div class="explain" style="max-width:72ch">
     <ul>
@@ -870,45 +901,64 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
 <!-- W3 A SPACE -->
 <section class="step" id="w3" style="grid-template-columns:1fr">
   <div class="explain" style="max-width:72ch">
-    <h2>3. Inside a space: the chat is the page</h2>
-    <p>A space is where its people talk. Planning happens on Today and finding people happens on Discover, so here the chat takes the middle of the screen and the space's list sits in a narrow panel beside it.</p>
+    <h2>3. Inside a space: the chat leads</h2>
+    <p>A space is where its people talk, so the chat takes the middle of the screen. The space's goals stay pinned above it, and the list and the people sit in a panel beside it.</p>
   </div>
   <div class="browser-wrap"><div class="browser xl">
     <div class="chrome"><i></i><i></i><i></i><span class="url">buildpair.app/spaces/life</span></div>
     <div class="mn app space">
       <nav class="sb" data-on="sp-life"></nav>
       <main class="chatpane">
-        <div class="cph"><span class="sp-ico" style="background:#2f8f5b;width:30px;height:30px;font-size:14px;border-radius:8px">L</span><div style="min-width:0"><b>Life</b><div class="sub">You, Jordan, Kim, Theo and Ana</div></div><span class="tools"><span class="faces"><i style="background:#c97a9e">J</i><i style="background:#5d8aa8">K</i><i style="background:#8a5a2b">T</i><i style="background:#b0487a">A</i></span><span class="tbtn"><span data-ic="userplus"></span>People</span></span></div>
+        <div class="cph"><span class="sp-ico" style="background:#2f8f5b;width:34px;height:34px;font-size:15px;border-radius:9px">L</span><div style="min-width:0"><b>Life</b><div class="sub">Family, health and the house · 5 people</div></div><span class="tools"><span class="tbtn"><span data-ic="userplus"></span>People</span><span class="tbtn"><span data-ic="dots"></span></span></span></div>
+        <div class="pins">
+          <div class="pin"><div class="row" style="justify-content:space-between"><b>Plan Lisbon trip</b><span class="sub">by Dec 1</span></div><div class="goalbar" style="margin:0"><div class="bar"><i style="width:43%"></i></div><span class="for">3 of 7</span></div></div>
+          <div class="pin"><div class="row" style="justify-content:space-between"><b>Gym 4x a week</b><span class="sub">Habit</span></div><div class="row" style="justify-content:space-between"><span class="habit-dots" style="margin:0"><i class="d"></i><i class="d"></i><i></i><i></i></span><span class="for">2 of 4 this week</span></div></div>
+          <div class="pin"><div class="row" style="justify-content:space-between"><b>This week</b><span class="sub">Life</span></div><div class="for" style="font-size:12px">9 done · 1 skip · 14 messages</div></div>
+        </div>
         <div class="cthread">
-          <div class="sys">Thursday</div>
-          <div class="rollup"><span class="rollup-ico">4</span><div>Maya finished 4 things<div class="items">Groceries, Pay rent, Book vet, Upper body</div><div class="reacts" style="position:relative"><span class="mine">🔥 5</span><span>👏 2</span></div></div></div>
+          <div class="rollup"><span class="rollup-ico">4</span><div>Maya finished 4 things<div class="items">Groceries, Pay rent, Book vet, Upper body</div><div class="reacts"><span class="mine">🔥 5</span><span>👏 2</span><span class="add">+ 🙂</span></div></div></div>
           <div class="ev"><span class="ev-mark skip"></span><div class="ev-text">Maya skipped <b>Gym</b><span class="when">Thu</span><div class="update-msg" style="margin-top:4px">Car broke down. Going Saturday instead.</div></div></div>
           <div class="margin msgwrap"><div class="av" style="background:#c97a9e">J</div><div class="note"><div>I can take the kids Saturday morning so you can go.</div><span class="who">Jordan · 20 min ago</span></div>
-            <div class="msg-tools"><span>🔥</span><span>👏</span><span><span data-ic="smile"></span></span><span><span data-ic="reply"></span></span></div></div>
+            <div class="msg-tools"><span>🔥</span><span>👏</span><span><span data-ic="smile"></span></span><span><span data-ic="reply"></span></span><span><span data-ic="dots"></span></span></div></div>
           <div class="sys">Today</div>
-          <div class="ev"><span class="ev-mark"></span><div class="ev-text">Maya completed <b>Book flights</b><span class="when">9:40</span><div class="update-msg" style="margin-top:4px">Flights booked! Apartments next.</div><div class="reacts"><span>🎉 2</span></div></div></div>
-          <div class="margin"><div class="av" style="background:#5d8aa8">K</div><div class="note"><div>Ooh, I have a list of day trips from when we went. Sending it tonight.</div><span class="who">Kim · 5 min ago</span></div></div>
+          <div class="ev"><span class="ev-mark"></span><div class="ev-text">Maya completed <b>Book flights</b> in Plan Lisbon trip<span class="when">9:40</span><div class="update-msg" style="margin-top:4px">Flights booked! Apartments next.</div><div class="reacts"><span>🎉 3</span><span>✈️ 1</span></div></div></div>
+          <div class="margin"><div class="av" style="background:#5d8aa8">K</div><div class="note"><div>I have a list of day trips from when we went. Sending it tonight.</div><span class="who">Kim · 5 min ago</span></div></div>
         </div>
-        <div class="ccompose"><span class="tool" title="Update an item"><span data-ic="pencil"></span></span><span class="field">Message Life…</span><span class="tool"><span data-ic="smile"></span></span></div>
+        <div class="ccompose"><span class="pillbtn"><span data-ic="pencil"></span>Update</span><span class="field">Message Life…</span><span class="tool"><span data-ic="smile"></span></span></div>
       </main>
       <aside class="rp slim">
         <div class="rh"><b>In this space</b><span class="x"><span data-ic="chevR"></span></span></div>
-        <div class="rb" style="gap:0">
-          <div class="todo w"><span class="ck"></span><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><span class="due"></span></div>
-          <div class="todo w"><span class="ck"></span><div>Plan Lisbon trip</div><span class="due">3 of 7</span></div>
-          <div class="todo w"><span class="ck"></span><div>Pick up kids</div><span class="due">5:30 PM</span></div>
-          <div class="todo w"><span class="ck"></span><div>Dentist</div><span class="due">Fri</span></div>
-          <div class="addinline">+ Add to Life</div>
+        <div class="rb" style="gap:10px">
+          <div>
+            <div class="lbl">Habits and goals</div>
+            <div class="todo w"><span class="ck"></span><div><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><div class="for">2 of 4 this week</div></div><span class="due">9 AM</span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Plan Lisbon trip</div><div class="for">3 of 7 · by Dec 1</div></div><span class="due"></span></div>
+          </div>
+          <div>
+            <div class="lbl">To-dos</div>
+            <div class="todo w"><span class="ck"></span><div>Pick up kids</div><span class="due">5:30 PM</span></div>
+            <div class="todo w"><span class="ck"></span><div>Dentist</div><span class="due">Fri 3 PM</span></div>
+            <div class="todo w"><span class="ck"></span><div>Renew passport <span class="lock"><span data-ic="lock"></span></span></div><span class="due">Oct 20</span></div>
+            <div class="collapsed">Done this week · 6</div>
+            <div class="addinline" style="border-top:0;padding-top:2px">+ Add to Life</div>
+          </div>
+          <div>
+            <div class="lbl">People</div>
+            <div class="ppl"><span class="av" style="background:#c97a9e">J<i class="on"></i></span><span>Jordan</span><span class="sub">Here now</span></div>
+            <div class="ppl"><span class="av" style="background:#8a5a2b">T<i class="on"></i></span><span>Theo</span><span class="sub">Here now</span></div>
+            <div class="ppl"><span class="av" style="background:#5d8aa8">K</span><span>Kim</span><span class="sub">5 min ago</span></div>
+            <div class="ppl"><span class="av" style="background:#b0487a">A</span><span>Ana</span><span class="sub">Yesterday</span></div>
+          </div>
         </div>
       </aside>
     </div>
   </div></div>
   <div class="explain" style="max-width:72ch">
     <ul>
-      <li><b>The chat fills the page:</b> completions, skips with their reasons, update notes and messages, with the message box always at the bottom. The pencil beside it posts an update about an item.</li>
-      <li><b>Reactions stack</b>; hover one to see who reacted. Hovering a message shows react and reply.</li>
-      <li><b>The list panel</b> on the right is for glancing and ticking: open items only, no sections or metadata. The arrow folds it away to leave just the chat. Editing and planning happen on Today.</li>
-      <li><b>People</b> opens screen 6. Join requests appear as one line at the top of the chat ("Dana wants to support Running · Review").</li>
+      <li><b>The chat leads:</b> completions, rolled-up to-dos, skips with their reasons, update notes and messages, with stacked reactions. Hover a reaction to see who sent it, or a message to react and reply.</li>
+      <li><b>Pinned above the chat:</b> the space's goals and habits with their progress, and a line for the week, so everyone talking can see what's moving.</li>
+      <li><b>The side panel</b> holds the list (tick things off right here) and who's around now. The arrow folds it away to leave just the chat.</li>
+      <li><b>Update</b> beside the message box posts a note about an item. Join requests and Discover offers appear as a line at the top of the chat with a Review button.</li>
     </ul>
   </div>
 </section>
@@ -921,50 +971,65 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
   </div>
   <div class="browser-wrap"><div class="browser xl">
     <div class="chrome"><i></i><i></i><i></i><span class="url">buildpair.app/today</span></div>
-    <div class="mn app c2">
+    <div class="mn app">
       <nav class="sb" data-on="today"></nav>
-      <main class="pane" style="padding-inline:32px">
-        <div class="ph"><div><h3>Today</h3><div class="sub">Saturday, October 10</div></div>
+      <main class="pane">
+        <div class="ph"><div><h3>Today</h3><div class="sub">Saturday, October 10 · 5 left · 1 done</div></div>
           <div class="tools"><span class="sub">2 selected</span><span class="tbtn ghost">Clear <span class="k">Esc</span></span></div></div>
-        <div style="max-width:640px;display:grid;gap:12px">
-          <div>
-            <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#3557d6">L</span>Ledgerly</span></div>
-            <div style="margin-top:6px">
-              <div class="todo w"><span class="ck"></span><div>Send invoice to Northwind</div><span class="due late">Yesterday</span></div>
-              <div class="todo w sel"><span class="ck selck"></span><div>Email 3 beta users</div><span class="due"></span></div>
-            </div>
-          </div>
-          <div style="position:relative">
-            <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#2f8f5b">L</span>Life</span></div>
-            <div style="margin-top:6px">
-              <div class="todo w"><span class="ck"></span><div>Pick up kids from daycare</div><span class="due">5:30 PM</span></div>
-              <div class="todo w sel"><span class="ck selck"></span><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><span class="due"></span></div>
-            </div>
-            <div class="pop cmenu" style="left:120px;top:96px">
-              <div class="mi"><span data-ic="skip"></span>Skip today<span class="k">S</span></div>
-              <div class="mi"><span data-ic="wont"></span>Won't do<span class="k">W</span></div>
-              <div class="mi"><span data-ic="pencil"></span>Update…<span class="k">U</span></div>
-              <div class="mi hl"><span data-ic="move"></span>Move to<span class="sk">›</span></div>
-              <div class="mi sep"><span data-ic="cal"></span>Change schedule…<span class="k">D</span></div>
-              <div class="mi"><span data-ic="lock"></span>Only visible to me</div>
-              <div class="mi sep danger"><span data-ic="trash"></span>Delete</div>
-            </div>
-            <div class="pop cmenu" style="left:358px;top:196px;min-width:170px">
-              <div class="mi"><span class="sp-ico" style="background:#3557d6;width:16px;height:16px;font-size:9px;border-radius:4px">L</span>Ledgerly</div>
-              <div class="mi"><span class="sp-ico" style="background:#c0392b;width:16px;height:16px;font-size:9px;border-radius:4px">R</span>Running</div>
-              <div class="mi"><span class="sp-ico" style="background:#5d6474;width:16px;height:16px;font-size:9px;border-radius:4px">P</span>Private</div>
-            </div>
+        <div>
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#3557d6">L</span>Ledgerly</span><span class="sp-who"><span class="meta">1 of 3 done</span></span></div>
+          <div style="margin-top:6px">
+            <div class="todo w"><span class="ck"></span><div><div>Send invoice to Northwind</div><div class="for">First 10 paying users</div></div><span class="due late">Yesterday</span></div>
+            <div class="todo w sel"><span class="ck selck"></span><div><div>Email 3 beta users</div><div class="for">First 10 paying users</div></div><span class="due">Any time</span></div>
           </div>
         </div>
-        <div class="selbar"><span class="cnt">2 selected</span><span class="a"><span data-ic="skip"></span>Skip today</span><span class="a"><span data-ic="wont"></span>Won't do</span><span class="a"><span data-ic="pencil"></span>Update</span><span class="a"><span data-ic="move"></span>Move</span><span class="a"><span data-ic="dots"></span></span></div>
+        <div style="position:relative">
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#2f8f5b">L</span>Life</span><span class="sp-who"><span class="meta">0 of 2 done</span></span></div>
+          <div style="margin-top:6px">
+            <div class="todo w"><span class="ck"></span><div><div>Pick up kids from daycare</div></div><span class="due">5:30 PM</span></div>
+            <div class="todo w sel"><span class="ck selck"></span><div><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><div class="for">Habit · 2 of 4 this week</div></div><span class="due">9:00 AM</span></div>
+          </div>
+          <div class="pop cmenu" style="left:130px;top:104px">
+            <div class="mh">2 items</div>
+            <div class="mi"><span data-ic="skip"></span>Skip today<span class="k">S</span></div>
+            <div class="mi"><span data-ic="wont"></span>Won't do<span class="k">W</span></div>
+            <div class="mi"><span data-ic="pencil"></span>Update…<span class="k">U</span></div>
+            <div class="mi hl"><span data-ic="move"></span>Move to<span class="sk">›</span></div>
+            <div class="mi sep"><span data-ic="cal"></span>Change schedule…<span class="k">D</span></div>
+            <div class="mi"><span data-ic="bell"></span>Reminder…<span class="k">R</span></div>
+            <div class="mi"><span data-ic="lock"></span>Only visible to me<span class="k">L</span></div>
+            <div class="mi"><span data-ic="dup"></span>Duplicate<span class="sk">⌘D</span></div>
+            <div class="mi sep danger"><span data-ic="trash"></span>Delete<span class="sk">⌫</span></div>
+          </div>
+          <div class="pop cmenu" style="left:368px;top:210px;min-width:180px">
+            <div class="mi"><span class="sp-ico" style="background:#3557d6;width:16px;height:16px;font-size:9px;border-radius:4px">L</span>Ledgerly</div>
+            <div class="mi"><span class="sp-ico" style="background:#c0392b;width:16px;height:16px;font-size:9px;border-radius:4px">R</span>Running</div>
+            <div class="mi"><span class="sp-ico" style="background:#5d6474;width:16px;height:16px;font-size:9px;border-radius:4px">P</span>Private</div>
+            <div class="mi sep" style="color:#3557d6"><span data-ic="plus" style="color:#3557d6"></span>New space…</div>
+          </div>
+        </div>
+        <div class="selbar"><span class="cnt">2 selected</span><span class="a"><span data-ic="skip"></span>Skip today <span class="k">S</span></span><span class="a"><span data-ic="wont"></span>Won't do <span class="k">W</span></span><span class="a"><span data-ic="pencil"></span>Update <span class="k">U</span></span><span class="a"><span data-ic="move"></span>Move <span class="k">M</span></span><span class="a"><span data-ic="dots"></span></span></div>
       </main>
+      <aside class="rp">
+        <div class="rh"><b style="font-size:15px">2 items selected</b></div>
+        <div class="rb">
+          <div class="listbox" style="padding:0 12px;background:#fff">
+            <div class="todo w" style="grid-template-columns:20px 1fr auto"><span class="sp-ico" style="background:#3557d6">L</span><div>Email 3 beta users<div class="for">To-do · Ledgerly</div></div><span class="due">Any time</span></div>
+            <div class="todo w" style="grid-template-columns:20px 1fr auto"><span class="sp-ico" style="background:#2f8f5b">L</span><div>Gym<div class="for">Habit · Life</div></div><span class="due">9:00 AM</span></div>
+          </div>
+          <div class="lbl">Change for both</div>
+          <dl class="kv"><dt>Date</dt><dd><span class="selectish">Mixed<span data-ic="chevD" class="dd"></span></span></dd><dt>Reminder</dt><dd><span class="selectish">None<span data-ic="chevD" class="dd"></span></span></dd><dt>Visible to</dt><dd><span class="selectish">Everyone in the space<span data-ic="chevD" class="dd"></span></span></dd></dl>
+        </div>
+        <div class="toastw" style="left:16px;right:16px;justify-content:space-between">Skipped "Call the accountant" today<b>Add a reason <span class="k">R</span></b></div>
+      </aside>
     </div>
   </div></div>
   <div class="explain" style="max-width:72ch">
     <ul>
-      <li><b>Select</b> by clicking a row's edge; Shift-click selects a range, Cmd-click adds one. The circle still means done.</li>
-      <li><b>The action bar</b> has the phone's five actions: Skip today, Won't do, Update, Move and •••.</li>
-      <li><b>Right-click</b> opens the full menu. Skip and Won't do apply instantly, then a small toast offers "Add a reason" like on the phone.</li>
+      <li><b>Select</b> by clicking a row's edge or pressing <span class="kk">X</span>; Shift-click selects a range, Cmd-click adds one. The circle still means done. Selection works across spaces.</li>
+      <li><b>The action bar</b> has the phone's five actions with their keys: Skip today <span class="kk">S</span>, Won't do <span class="kk">W</span>, Update <span class="kk">U</span>, Move <span class="kk">M</span>, and •••.</li>
+      <li><b>Right-click</b> opens the full menu, with a Move to submenu and each shortcut listed. The margin lets you change date, reminder or visibility for everything selected.</li>
+      <li><b>Skip and Won't do apply instantly</b>; the toast offers "Add a reason", which goes to the space's chat. <span class="kk">⌘Z</span> undoes.</li>
     </ul>
   </div>
 </section>
@@ -980,51 +1045,53 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
     <div class="mn app">
       <nav class="sb" data-on="today"></nav>
       <main class="pane">
-        <div class="ph"><div><h3>Today</h3><div class="sub">Saturday, October 10</div></div>
+        <div class="ph"><div><h3>Today</h3><div class="sub">Saturday, October 10 · 5 left · 1 done</div></div>
           <div class="tools"><span class="vseg"><span class="on">List</span><span>Week</span></span></div></div>
         <div class="addbar"><span data-ic="plus"></span>Add a to-do, habit or goal<span class="k">Q</span></div>
         <div>
-          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#3557d6">L</span>Ledgerly</span></div>
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#3557d6">L</span>Ledgerly</span><span class="sp-who"><span class="meta">1 of 3 done</span></span></div>
           <div style="margin-top:6px">
-            <div class="todo w"><span class="ck"></span><div>Send invoice to Northwind</div><span class="due late">Yesterday</span></div>
-            <div class="todo w"><span class="ck"></span><div>Email 3 beta users</div><span class="due"></span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Send invoice to Northwind</div><div class="for">First 10 paying users</div></div><span class="due late">Yesterday</span></div>
+            <div class="todo w"><span class="ck on"></span><div><div class="done-t">Fix invoice PDF bug</div><div class="for">Launch v1 · 🔥 3</div></div><span class="due">Done 9:12 AM</span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Email 3 beta users</div><div class="for">First 10 paying users</div></div><span class="due">Any time</span></div>
           </div>
         </div>
         <div>
-          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#2f8f5b">L</span>Life</span></div>
+          <div class="sp-h"><span class="sp-name"><span data-ic="chevD" class="chev"></span><span class="sp-ico" style="background:#2f8f5b">L</span>Life</span><span class="sp-who"><span class="meta">0 of 2 done</span></span></div>
           <div style="margin-top:6px">
-            <div class="todo w"><span class="ck"></span><div>Pick up kids from daycare</div><span class="due">5:30 PM</span></div>
-            <div class="todo w open"><span class="ck"></span><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><span class="due"></span></div>
+            <div class="todo w"><span class="ck"></span><div><div>Pick up kids from daycare</div></div><span class="due">5:30 PM</span></div>
+            <div class="todo w open"><span class="ck"></span><div><div>Gym<span class="habit-dots"><i class="d"></i><i class="d"></i><i></i><i></i></span></div><div class="for">Habit · 2 of 4 this week</div></div><span class="due">9:00 AM</span></div>
           </div>
         </div>
       </main>
       <aside class="rp">
-        <div class="rh"><b style="font-size:16px">Gym</b><span class="x"><span data-ic="x"></span></span></div>
-        <div class="rb" style="gap:16px">
-          <div class="sub" style="margin-top:-8px">Habit · 4 times a week · Life</div>
+        <div class="rh"><b style="font-size:17px">Gym</b><span class="row" style="gap:6px"><span class="kind" style="margin:0">Habit · Life</span><span class="x"><span data-ic="x"></span></span></span></div>
+        <div class="rb" style="gap:14px">
           <div style="display:grid;gap:6px">
             <div class="lbl">This week · 2 of 4</div>
             <div class="wkdays"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
             <div class="wkdays"><i class="d">✓</i><i></i><i class="d">✓</i><i class="s">–</i><i></i><i class="t">10</i><i></i></div>
           </div>
           <div style="display:grid;gap:8px">
-            <div class="lbl">On target 8 of the last 11 weeks</div>
+            <div class="row" style="justify-content:space-between"><span class="lbl">Last 12 weeks</span><span class="sub">On target 8 of the last 11</span></div>
             <div class="heat" data-heat="dd.d.d.|d.d.dd.|.d.dd.d|d.d.d..|d.dd.d.|.......|d.d..s.|dd.d.d.|d.d.d.d|.d.ddd.|d.dd.d.|d.ds..."></div>
           </div>
-          <dl class="kv"><dt>Reminder</dt><dd>7:00 AM, if not done</dd><dt>Visible to</dt><dd>Everyone in Life</dd></dl>
+          <dl class="kv"><dt>Repeat</dt><dd>4 times a week</dd><dt>Reminder</dt><dd>7:00 AM, if not done</dd><dt>Visible to</dt><dd>Everyone in Life</dd></dl>
           <div style="display:grid;gap:8px">
-            <div class="lbl">Skips</div>
+            <div class="lbl">Skips and notes</div>
             <div class="ev"><span class="ev-mark skip"></span><div class="ev-text" style="font-size:12px">Thu · Car broke down. Going Saturday instead.</div></div>
+            <div class="margin"><div class="av" style="background:#8a5a2b">T</div><div class="note" style="padding:7px 9px"><div style="font-size:12px">Saturday gym crew? I'm going at 9.</div><span class="who">Theo · from the chat</span></div></div>
           </div>
+          <div class="row" style="gap:6px"><span class="tbtn"><span data-ic="skip"></span>Skip today</span><span class="tbtn"><span data-ic="pencil"></span>Update</span><span class="tbtn"><span data-ic="dots"></span></span></div>
         </div>
       </aside>
     </div>
   </div></div>
   <div class="explain" style="max-width:72ch">
     <ul>
-      <li><b>Habit details:</b> this week's days, a 12-week history, and "On target 8 of the last 11 weeks". It counts weeks rather than a daily streak, so one bad week doesn't wipe anything out.</li>
-      <li>Schedule, reminder and visibility edit in place. A <b>goal</b> opens the same panel with its deadline, progress and steps.</li>
-      <li>Esc closes the panel and the margin goes back to "Check in on".</li>
+      <li><b>Habit details:</b> this week's days, a 12-week history and "On target 8 of the last 11". It counts weeks rather than a daily streak, so one bad week doesn't wipe anything out.</li>
+      <li><b>Skips and notes</b> collects your reasons and the chat replies about this habit, handy for the weekly review.</li>
+      <li>Schedule, reminder and visibility edit in place. A <b>goal</b> opens the same panel with its deadline, progress, steps and linked Jira project.</li>
     </ul>
   </div>
 </section>
@@ -1162,7 +1229,7 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
       <nav class="sb" data-on="discover"></nav>
       <main class="pane">
         <div class="ph"><div><h3>Discover</h3><div class="sub">Spaces that want support</div></div><span class="vseg"><span class="on">For you</span><span>Browse</span></span></div>
-        <div class="fchips"><span class="on">Similar to your spaces</span><span>Launching something</span><span>Same time zone</span></div>
+        <div class="fchips"><span class="on">Similar to your spaces</span><span>Launching something</span><span>Same time zone</span><span>Wants<span data-ic="chevD" class="dd"></span></span></div>
         <div class="dgrid">
           <div class="card">
             <div class="row"><div class="av" style="background:#1f7a8c">DK</div><div style="min-width:0"><div style="font-weight:650;font-size:14px">Spring half · Dana</div><div class="sub">First half marathon in May</div></div></div>
@@ -1200,6 +1267,11 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
             <div class="sub">Shown to people training for races</div>
             <div class="row" style="gap:6px"><span class="tbtn pri">Review requests</span><span class="tbtn">Edit</span></div>
           </div>
+          <div class="grp-h">Offers you sent · 1 of 3</div>
+          <div class="listbox" style="background:#fff">
+            <div class="todo w" style="grid-template-columns:28px 1fr auto"><div class="av" style="background:#1f7a8c;width:26px;height:26px;font-size:10px">DK</div><div><div>Spring half · Dana</div><div class="for">Support each other · sent today</div></div><span class="due">6 days left</span></div>
+          </div>
+          <div class="sub">You can have 3 open offers. Unanswered offers expire after a week.</div>
         </div>
       </aside>
     </div>
@@ -1213,6 +1285,24 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
           <div class="people"><span class="person on"><i style="background:#c0392b">R</i>Running</span><span class="person on"><i style="background:#3557d6">L</i>Ledgerly</span><span class="person"><i style="background:#2f8f5b">L</i>Life</span></div></div></div>
         <div class="card" style="gap:4px;padding:9px 12px"><span class="lbl">Note</span><span>Also training for a spring half! Happy to check in, and I'd love the same.</span></div>
         <div class="row" style="justify-content:flex-end;gap:8px"><span class="tbtn ghost">Cancel</span><span class="tbtn pri">Send offer <span class="k" style="background:transparent;color:#dfe6ff;border-color:#6d86e6">⌘↵</span></span></div>
+      </div>
+    </div>
+    <div class="spec mn"><span class="cap">Reviewing offers (from the line in the chat)</span>
+      <div class="pop static" style="width:520px;padding:16px;gap:12px">
+        <div class="row" style="justify-content:space-between"><span class="ph3">Requests · Running</span><span class="req-tag">2</span></div>
+        <div class="card">
+          <div class="row"><div class="av lg" style="background:#1f7a8c">DK</div><div style="flex:1"><div style="font-weight:650;font-size:14px">Dana Kim <span class="sub" style="font-weight:400">· support each other</span></div><div class="sub">"Training for a spring half too. Want to keep each other going?"</div></div></div>
+          <div class="lbl">In return, pick one of Dana's spaces to support</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="listbox" style="padding:6px 10px;border-color:#3557d6;background:var(--tint)"><div class="opt" style="border-top:0;padding:4px 0"><span class="radio on"></span><div><div class="opt-t" style="font-size:13px">Spring half</div><div class="sub">Wants check-ins when quiet</div></div></div></div>
+            <div class="listbox" style="padding:6px 10px"><div class="opt" style="border-top:0;padding:4px 0"><span class="radio"></span><div><div class="opt-t" style="font-size:13px">Learn Spanish</div><div class="sub">Wants honest takes</div></div></div></div>
+          </div>
+          <div class="row" style="gap:8px;justify-content:flex-end"><span class="tbtn ghost">View Dana's profile</span><span class="tbtn">Decline</span><span class="tbtn pri">Accept</span></div>
+        </div>
+        <div class="card">
+          <div class="row"><div class="av lg" style="background:#7a6bd1">LM</div><div style="flex:1"><div style="font-weight:650;font-size:14px">Leo Martins <span class="sub" style="font-weight:400">· via invite link</span></div><div class="sub">"Ran my first half last year. Happy to keep you honest."</div></div></div>
+          <div class="row" style="gap:8px;justify-content:flex-end"><span class="tbtn">Decline</span><span class="tbtn pri">Accept</span></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1483,7 +1573,7 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
             <div style="margin-top:8px;color:#5d6474;font-size:12px;display:block">Private spaces aren't part of the review.</div>
           </div>
           <div style="display:grid;gap:12px;align-content:start;min-width:0">
-            <div class="stat3"><span><b>7</b>done</span><span><b>1</b>skipped</span><span><b>62%</b>Launch v1</span></div>
+            <div class="stat3"><span><b>7</b>done</span><span><b>1</b>skipped</span><span><b>62%</b>Launch v1 (up from 50%)</span><span><b>2</b>of 10 paying users</span></div>
             <div style="display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:20px">
               <div style="display:grid;gap:10px;align-content:start">
                 <div><div class="lbl" style="margin-bottom:6px">How's it going overall?</div>
@@ -1496,6 +1586,9 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
               <div style="display:grid;gap:10px;align-content:start">
                 <div class="lbl">Last week, your supporters said</div>
                 <div class="margin"><div class="av" style="background:#c47f0c">S</div><div class="note"><b>I'd focus on</b><div>Talking to the two users who stalled. Skip new features for a week.</div><span class="who">Sam</span></div></div>
+                <div class="margin"><div class="av" style="background:#2f6f6a">C</div><div class="note"><b>Honest take</b><div>Launch v1 by Nov 21 looks tight but doable if pricing doesn't eat another week.</div><span class="who">Chloe</span></div></div>
+                <div class="lbl" style="margin-top:4px">This week's skips</div>
+                <div class="ev"><span class="ev-mark skip"></span><div class="ev-text" style="font-size:12px">Tue · Weekly user calls: "Nobody booked"</div></div>
               </div>
             </div>
           </div>
@@ -1527,7 +1620,7 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
 
 <footer class="end">
   <h2>What this adds up to</h2>
-  <p>Every phone screen has a desktop version. Each area keeps one job: Today for planning, spaces for their chat, Supporting and Discover for people. The desktop adds item details, the command palette, the Upcoming week view and the one-screen weekly review.</p>
+  <p>Every phone screen has a desktop version. Each area keeps a clear focus: Today for planning, spaces for their chat, Supporting and Discover for people. The desktop adds item details, the command palette, the Upcoming week view and the one-screen weekly review.</p>
   <p>Still to draw: dark mode versions of these screens, onboarding at desktop size, empty states (no spaces, no supporters, empty Discover), the focus timer, and the Pro upgrade screen. The browser frames and phone frames are drawn in the light theme only.</p>
 </footer>
 </div>
@@ -1567,7 +1660,7 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
   var spaces = [
     ['sp-ledgerly', 'Ledgerly', '#3557d6', 'L', '<span class="dot-u"></span>'],
     ['sp-life', 'Life', '#2f8f5b', 'L', ''],
-    ['sp-running', 'Running', '#c0392b', 'R', '<span class="dot-u"></span>'],
+    ['sp-running', 'Running', '#c0392b', 'R', '<span class="n b">2</span>'],
     ['sp-private', 'Private', '#5d6474', 'P', '']
   ];
   var supporting = [
@@ -1581,13 +1674,17 @@ section.step h2 a.anchor { color: inherit; text-decoration: none; }
   function sidebar(on) {
     var h = '<div class="brand"><svg viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="10" width="24" height="28" rx="7" fill="#4169e1"/><rect x="20" y="10" width="24" height="28" rx="7" fill="none" stroke="#151a26" stroke-width="4"/></svg><span class="wm">Buildpair</span></div>';
     h += '<div class="find">' + svg('search') + 'Search<span class="k">⌘K</span></div>';
-    h += nav('today', on, 'today', 'Today');
+    h += nav('today', on, 'today', 'Today', '<span class="n">5</span>');
     h += nav('upcoming', on, 'cal', 'Upcoming');
-    h += nav('supporting', on, 'people', 'Supporting', '<span class="dot-u"></span>');
+    h += nav('supporting', on, 'people', 'Supporting', '<span class="n b">2</span>');
     h += nav('discover', on, 'search', 'Discover');
     h += '<div class="gh">Spaces<span class="p">+</span></div>';
     spaces.forEach(function (s) {
       h += '<a class="nv' + (s[0] === on ? ' on' : '') + '"><span class="sp-ico" style="background:' + s[2] + '">' + s[3] + '</span>' + s[1] + s[4] + '</a>';
+    });
+    h += '<div class="gh">Supporting</div>';
+    supporting.forEach(function (s) {
+      h += '<a class="nv' + (s[0] === on ? ' on' : '') + '"><span class="av" style="background:' + s[2] + '">' + s[3] + '</span>' + s[1] + s[4] + '</a>';
     });
     h += '<div class="me"><span class="av" style="background:#3557d6">M</span><span style="font-weight:600;font-size:13px">Maya Chen</span><span class="bellb">' + svg('bell') + '<b>3</b></span></div>';
     return h;
