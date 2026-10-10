@@ -3,7 +3,7 @@
 Design work for rebranding GoalBuddy as **Buildpair**. No app code has changed yet; everything so far is product decisions, research and screen mockups.
 
 > **RESUME HERE (next session): owner review of the architecture, then create the new `buildpair` repo.**
-> Clean-slate architecture: `docs/architecture/buildpair-architecture.md` (live page: https://claude.ai/artifact/2ouhaieSYMSy3oFrVPUSJP). One Expo app; Cloudflare Workers with a Durable Object per space (chat and sync) and per user; D1 and R2; GitHub Actions + EAS. Next: the owner's answers to its open decisions (domain, public/private repo, sign-in methods, EU analytics consent), then milestone 1 (foundations) in a new repo. The next big product feature after the core is integrations (Jira first).
+> Clean-slate architecture: `docs/architecture/buildpair-architecture.md` (live page: https://claude.ai/artifact/2ouhaieSYMSy3oFrVPUSJP). One Expo app; Cloudflare Workers with a Durable Object per space (chat and sync) and per user; D1 and R2; GitHub Actions + EAS. Decided 2026-10-10: domain `buildpair.app`, public repo, email-code sign-in then Google (plus Sign in with Apple on iOS), privacy-first cookieless analytics. Next: create the public `buildpair` repo (owner to confirm the GitHub owner) and start milestone 1 (foundations). Open: a license for the public repo. The next big product feature after the core is integrations (Jira first).
 
 ## Where everything is
 
@@ -69,7 +69,7 @@ Layout: sidebar (navigation, your spaces, spaces you support, profile) · the pa
 - [ ] Web: single-letter shortcuts (Q, S, W, U, M) on by default, with an off switch in settings (as drawn), or off by default?
 - [ ] Simplify the per-person "Supporter ▾" menu on the people screen to long-press → Remove, like a group chat?
 - [ ] Team spaces later (everyone in a space adds their own goals, for crews or cohorts)?
-- [ ] Final logo: trademark search on the name and mark, and a designer's refinement. A Buildpair domain (only `goalbuddy.app` is owned today).
+- [ ] Final logo: trademark search on the name and mark, and a designer's refinement. Domain decided: `buildpair.app` (2026-10-10).
 - [ ] Seasons (6-week runs with a demo day): keep as an optional feature or drop?
 
 ## 5. Key decisions so far

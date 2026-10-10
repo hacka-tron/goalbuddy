@@ -39,10 +39,10 @@ The product's unit of everything is the **space**: a list plus one chat, shared 
 | Global data | Cloudflare D1 (SQLite) with read replication | Accounts, usernames, Buildpair IDs, invite links, Discover listings, offers, integrations, reports |
 | Files | Cloudflare R2 | Avatars and attachments; no egress fees |
 | Background work | Durable Object alarms, Queues, Cron Triggers, Workflows | Reminders and quiet-goal checks per space; fan-out of notifications; integration syncs with retries |
-| Auth | Better Auth on Workers + D1 (email code, Sign in with Apple, Google; passkeys later) | Open source, data stays in our database, no per-user fees |
+| Auth | Better Auth on Workers + D1 (email codes at launch, then Google and Sign in with Apple; passkeys later) | Open source, data stays in our database, no per-user fees |
 | Push | Expo Push Service (APNs/FCM) for phones, Web Push (VAPID) for desktop browsers | Free; one API for both phone platforms |
 | Email | Cloudflare Email Sending (public beta; 3,000 a month included) with an adapter so SES or Resend can replace it | Sign-in codes, offers, opt-in summaries |
-| Errors and analytics | Sentry (app and Workers), PostHog (product analytics, feature flags, session replay with text masked), Workers Logs | Free tiers cover this scale |
+| Errors and analytics | Sentry (app and Workers, no personal data), PostHog EU cloud in cookieless mode (product analytics, feature flags; session replay only for people who opt in), Workers Logs | Free tiers cover this scale |
 | CI/CD | GitHub Actions, Turborepo, EAS Build/Submit/Update, Wrangler, Terraform | Previews per PR; gated releases; reproducible infrastructure |
 
 ## System overview
@@ -149,14 +149,14 @@ The protocol is small on purpose: one ordered log per space, which is how mature
 
 ### 7. Auth, safety and app-store rules
 
-- Better Auth with email codes, Sign in with Apple and Google. Offering Google on iOS means offering Sign in with Apple too (App Store guideline 4.8).
+- Better Auth with email codes at launch, then Google, with Sign in with Apple added alongside Google on iOS (App Store guideline 4.8).
 - Bearer tokens in secure storage on phones, cookies on the web; sockets authenticate with a short-lived token.
 - Turnstile on sign-up, the free WAF rules, and per-user rate limits on commands.
 - User-generated content needs report and block (App Store guideline 1.2), and accounts must be deletable from inside the app. Deletion runs as a Workflow across D1, every room the person is in, and R2.
 
 ## The app
 
-- **One Expo app** with Expo Router. Routes are real URLs on the web (`buildpair.app/spaces/life`), which also serve as deep links on phones.
+- **One Expo app** with Expo Router. Routes are real URLs on the web (`buildpair.app/spaces/life`), which also open the app on phones through Universal Links and App Links.
 - **Desktop layouts** live in platform files (`_layout.web.tsx`) inside the same app: sidebar, margin, popovers, right-click menus, keyboard shortcuts, Cmd+K. If React Native Web ever limits the desktop experience, the shared packages make a separate React DOM web app a contained project rather than a rewrite.
 - **State**: synced data lives in the sync store (fed by the sync engine, read through selector hooks); screen-only state in small Zustand stores; one-off server requests (Discover search, profiles) through TanStack Query.
 - **Libraries worth using**: Reanimated 4, FlashList v2 or Legend List for long lists and the chat view (spike both for chat), expo-image, expo-notifications, expo-secure-store, react-native-keyboard-controller, chrono-node (natural-language dates like "dentist friday 3pm"), rrule (repeats), a Temporal polyfill for time zones.
@@ -249,12 +249,20 @@ Environments: local (Wrangler and Miniflare with local D1 and Durable Objects, E
 6. **Desktop extras and beta**: Cmd+K, Upcoming, weekly review, polish.
 7. **Integrations**: Jira first.
 
-## Open decisions for the owner
+## Decisions (owner, 2026-10-10)
 
-- The Buildpair domain (needed for links, app deep links and email reputation).
-- Public or private repository (public gets free code scanning and approval gates).
-- Sign-in methods at launch (recommended: email code, Apple, Google).
-- Analytics consent approach for EU users.
+- **Domain:** `buildpair.app`. The app lives at `buildpair.app`, the API at `api.buildpair.app`, and email goes from `buildpair.app` with SPF, DKIM and DMARC set up before the first send. Universal Links (iOS) and App Links (Android) point at `buildpair.app`, so shared links open the app when it's installed.
+- **Repository:** public. That brings free code scanning (CodeQL), secret scanning and approval gates on GitHub Environments. Every secret stays in GitHub Environments and Cloudflare, never in the code, and test data uses made-up people only.
+- **Sign-in at launch:** email codes first, then Google. Before Google ships on iOS, add Sign in with Apple: App Store guideline 4.8 asks apps with a social login for an equivalent privacy-focused option, and Sign in with Apple is the reliable way to meet it. It's free with the Apple developer account.
+- **Analytics consent (chosen for the owner):** privacy-first, so no consent banner is needed:
+  - PostHog on its EU cloud, in cookieless mode: nothing is stored on the device for analytics.
+  - Events are tied to an internal user ID, never email or name, and never include chat or item text.
+  - Session replay is off, except for people who opt in from settings ("Help improve Buildpair").
+  - A "Share usage data" switch in settings turns analytics off entirely; the privacy policy lists what is collected and why.
+  - No ad networks or tracking pixels, and no cross-app tracking, so iOS never shows Apple's tracking prompt.
+  - Sentry is set to send no personal data.
+  - This is a sensible default rather than legal advice; a short review by a privacy lawyer before launch is worthwhile.
+- **Still open:** a license for the public repository. With none, the code is visible but all rights stay reserved, which is the safe default until a choice is made.
 
 ## Sources (checked 2026-10-10)
 

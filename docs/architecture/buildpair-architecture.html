@@ -85,7 +85,7 @@ html { scroll-behavior: smooth; }
   <h1>How to build Buildpair from scratch</h1>
   <p class="lede">A design for a new repository that ignores the GoalBuddy code. It is tuned for a chat-first product, 1,000 daily users at the start, free tiers wherever they exist, low latency everywhere, and a production-grade release pipeline. Prices and versions were checked on the date above.</p>
   <nav class="jump" aria-label="Sections">
-    <a href="#decision">Decision</a><a href="#stack">Stack</a><a href="#message">How a message travels</a><a href="#data">Where data lives</a><a href="#sync">Sync</a><a href="#chat">Chat</a><a href="#jobs">Reminders</a><a href="#integrations">Integrations</a><a href="#app">The app</a><a href="#cicd">CI/CD</a><a href="#cost">Cost</a><a href="#alternatives">Alternatives</a><a href="#risks">Risks</a><a href="#order">Build order</a><a href="#sources">Sources</a>
+    <a href="#decision">Decision</a><a href="#stack">Stack</a><a href="#message">How a message travels</a><a href="#data">Where data lives</a><a href="#sync">Sync</a><a href="#chat">Chat</a><a href="#jobs">Reminders</a><a href="#integrations">Integrations</a><a href="#app">The app</a><a href="#cicd">CI/CD</a><a href="#cost">Cost</a><a href="#alternatives">Alternatives</a><a href="#risks">Risks</a><a href="#order">Build order</a><a href="#decided">Decisions</a><a href="#sources">Sources</a>
   </nav>
 </header>
 
@@ -128,10 +128,10 @@ html { scroll-behavior: smooth; }
       <tr><td>Global data</td><td>Cloudflare D1 with read replication</td><td>Accounts, usernames, Buildpair IDs, invite links, Discover listings, offers, integrations, reports</td></tr>
       <tr><td>Files</td><td>Cloudflare R2</td><td>Avatars and attachments, no egress fees</td></tr>
       <tr><td>Background work</td><td>Durable Object alarms, Queues, Cron Triggers, Workflows</td><td>Per-space checks, notification fan-out, integration syncs with retries</td></tr>
-      <tr><td>Sign-in</td><td>Better Auth on Workers + D1: email code, Sign in with Apple, Google; passkeys later</td><td>Open source, our data, no per-user fees</td></tr>
+      <tr><td>Sign-in</td><td>Better Auth on Workers + D1: email codes at launch, then Google and Sign in with Apple; passkeys later</td><td>Open source, our data, no per-user fees</td></tr>
       <tr><td>Push</td><td>Expo Push Service for phones, Web Push for desktop browsers</td><td>Free; one API for APNs and FCM</td></tr>
       <tr><td>Email</td><td>Cloudflare Email Sending (public beta, 3,000 a month included) behind an adapter</td><td>Sign-in codes, offers, opt-in summaries; SES or Resend can drop in</td></tr>
-      <tr><td>Errors and analytics</td><td>Sentry, PostHog (chat text masked), Workers Logs</td><td>Free tiers cover this scale</td></tr>
+      <tr><td>Errors and analytics</td><td>Sentry (no personal data), PostHog EU in cookieless mode, Workers Logs</td><td>Free tiers cover this scale</td></tr>
       <tr><td>CI/CD</td><td>GitHub Actions, Turborepo, EAS Build/Submit/Update, Wrangler, Terraform</td><td>Previews per PR, gated releases, reproducible infrastructure</td></tr>
     </tbody>
   </table></div>
@@ -373,13 +373,20 @@ html { scroll-behavior: smooth; }
     <li><span><b>Desktop extras and beta:</b> Cmd+K, Upcoming, weekly review, polish.</span></li>
     <li><span><b>Integrations:</b> Jira first.</span></li>
   </ol>
-  <h3>Decisions for you</h3>
-  <ul>
-    <li>The Buildpair domain (needed for links, deep links and email reputation).</li>
-    <li>Public or private repository (public gets free code scanning and approval gates).</li>
-    <li>Sign-in methods at launch (recommended: email code, Apple, Google).</li>
-    <li>How to ask EU users for analytics consent.</li>
-  </ul>
+</section>
+
+<section id="decided">
+  <h2>Decisions made</h2>
+  <div class="tbl wide"><table>
+    <thead><tr><th>Decision</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td>Domain: buildpair.app</td><td>App at <code>buildpair.app</code>, API at <code>api.buildpair.app</code>, email from <code>buildpair.app</code> with SPF, DKIM and DMARC set before the first send. Universal Links and App Links open shared links in the app when it's installed.</td></tr>
+      <tr><td>Public repository</td><td>Free code scanning, secret scanning and approval gates. Secrets live only in GitHub Environments and Cloudflare; test data uses made-up people.</td></tr>
+      <tr><td>Sign-in: email codes, then Google</td><td>Add Sign in with Apple before Google ships on iOS. App Store guideline 4.8 asks for an equivalent privacy-focused option, and Sign in with Apple is the reliable way to meet it.</td></tr>
+      <tr><td>Analytics consent (chosen for you)</td><td>Privacy-first, so no consent banner: PostHog EU cloud in cookieless mode; events keyed to an internal ID with no chat or item text; session replay only for people who opt in; a "Share usage data" switch in settings; no ad networks or tracking pixels, so iOS never shows Apple's tracking prompt; Sentry sends no personal data. A short review by a privacy lawyer before launch is worthwhile.</td></tr>
+      <tr><td>Still open: license</td><td>With no license, the public code is visible but all rights stay reserved. That's the safe default until you choose one.</td></tr>
+    </tbody>
+  </table></div>
 </section>
 
 <section id="sources">
