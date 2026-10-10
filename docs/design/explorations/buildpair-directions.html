@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buildpair Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Schibsted+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a comparison sheet. Page chrome follows the viewer's theme; each phone is a fixed-light specimen of its direction. */
+:root {
+  --page: #f4f5f8;
+  --ink: #141823;
+  --muted: #5b6272;
+  --rule: #dfe2ea;
+  --royal: #3557d6;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-head: "Schibsted Grotesk", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --page: #10131a; --ink: #e8eaf0; --muted: #9aa1b2; --rule: #2a2f3b; --royal: #8da8ff; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --page: #10131a; --ink: #e8eaf0; --muted: #9aa1b2; --rule: #2a2f3b; --royal: #8da8ff; color-scheme: dark; }
+body { background: var(--page); color: var(--ink); font-family: var(--font-ui); font-size: 16px; line-height: 1.55; padding-inline: 16px; padding-block: 0 72px; }
+.wrap { max-width: 1180px; margin-inline: auto; }
+header.top { padding-block: 44px 8px; max-width: 70ch; }
+header.top h1 { font-family: var(--font-head); font-weight: 700; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.06; letter-spacing: -0.02em; margin: 0 0 14px; text-wrap: balance; }
+header.top p { color: var(--muted); margin: 0 0 10px; }
+.flow { display: grid; gap: 10px; margin: 18px 0 0; padding: 0; list-style: none; counter-reset: s; }
+.flow li { counter-increment: s; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.flow li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--royal); color: var(--page); font-size: 13px; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); margin-top: 16px; }
+.legend b { color: var(--ink); font-weight: 600; }
+section.dir { margin-top: 56px; padding-top: 28px; border-top: 1px solid var(--rule); }
+.dir-head { display: grid; gap: 6px; max-width: 72ch; margin-bottom: 22px; }
+.dir-head h2 { font-family: var(--font-head); font-size: 28px; line-height: 1.15; letter-spacing: -0.01em; margin: 0; }
+.dir-head .rec { font-size: 13px; font-weight: 600; color: var(--royal); }
+.dir-head p { margin: 0; color: var(--muted); }
+.dir-body { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: start; }
+@media (min-width: 1000px) { .dir-body { grid-template-columns: auto minmax(0, 1fr); } }
+.phones { display: flex; flex-wrap: wrap; gap: 22px; }
+.notes { display: grid; gap: 14px; font-size: 15px; min-width: 0; max-width: 46ch; }
+.notes dl { margin: 0; display: grid; gap: 12px; }
+.notes dt { font-weight: 600; }
+.notes dd { margin: 2px 0 0; color: var(--muted); }
+
+.phone { width: 300px; max-width: 100%; border-radius: 38px; padding: 9px; background: #0d0f14; box-shadow: 0 18px 40px -18px rgba(10, 14, 30, 0.45); }
+.screen { border-radius: 30px; overflow: hidden; min-height: 620px; display: flex; flex-direction: column; }
+.status { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px 4px; font-size: 12px; font-weight: 600; }
+.status i { width: 14px; height: 8px; border-radius: 2px; border: 1.2px solid currentColor; display: block; }
+.scr-body { padding: 8px 16px 16px; display: grid; gap: 12px; flex: 1; align-content: start; }
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 6px 14px; font-size: 10px; text-align: center; }
+.tabbar span { display: grid; justify-items: center; gap: 3px; }
+.tabbar svg { width: 20px; height: 20px; }
+.cap { font-size: 12px; color: var(--muted); margin: 8px 0 0; text-align: center; max-width: 300px; }
+
+/* Shared Jira import pieces */
+.jira-row { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.jira-row:first-of-type { border-top: 0; }
+.box { width: 20px; height: 20px; border-radius: 5px; border: 1.5px solid #b4bac8; display: grid; place-items: center; margin-top: 1px; }
+.box.on { background: var(--blue); border-color: var(--blue); }
+.box.on::after { content: ""; width: 9px; height: 5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px, -1px); }
+.key { font-size: 11px; color: var(--sub); font-variant-numeric: tabular-nums; }
+
+/* ---------- 1. Margin Notes ---------- */
+.mn { --bg: #ffffff; --ink: #151a26; --sub: #5d6474; --line: #e6e8ef; --blue: #3557d6; --royal: #4169e1; --tint: #eef2fe; --ok: #1f8a4c; --warn: #a35b00; background: var(--bg); color: var(--ink); font-family: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif; }
+.mn .lt { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin: 2px 0 0; }
+.mn .sub { font-size: 12px; color: var(--sub); }
+.mn .goal { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.mn .goal-t { font-size: 17px; font-weight: 650; line-height: 1.3; }
+.mn .weeks { display: flex; gap: 4px; margin-top: 4px; }
+.mn .weeks i { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
+.mn .weeks i.d { background: var(--royal); }
+.mn .weeks i.n { background: linear-gradient(90deg, var(--royal) 50%, var(--line) 50%); }
+.mn .update { font-size: 13px; line-height: 1.45; display: grid; gap: 8px; }
+.mn .lbl { font-size: 11px; font-weight: 600; color: var(--sub); }
+.mn .chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #fdf1e1; color: var(--warn); }
+.mn .margin { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; }
+.mn .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; }
+.mn .note { background: var(--tint); border-radius: 4px 12px 12px 12px; padding: 10px 11px; display: grid; gap: 7px; font-size: 13px; line-height: 1.4; color: #1d2c66; }
+.mn .note b { font-size: 11px; font-weight: 700; color: var(--blue); display: block; margin-bottom: 1px; }
+.mn .who { font-size: 11px; color: var(--sub); }
+.mn .btn { background: var(--blue); color: #fff; border-radius: 10px; padding: 12px; font-weight: 600; font-size: 15px; text-align: center; }
+.mn .btn.sec { background: transparent; color: var(--blue); border: 1px solid var(--line); }
+.mn .tabbar { border-top: 1px solid var(--line); color: #8a90a0; }
+.mn .tabbar .on { color: var(--blue); }
+.mn .jira { border: 1px solid var(--line); border-radius: 12px; padding: 4px 12px; }
+
+/* ---------- 2. Release Notes ---------- */
+.rn { --bg: #f7f8fb; --card: #ffffff; --ink: #121826; --sub: #5a6274; --line: #e3e6ee; --blue: #3557d6; --royal: #4169e1; --ok: #1f8a4c; --warn: #a35b00; background: var(--bg); color: var(--ink); font-family: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif; }
+.rn .lt { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin: 2px 0 0; }
+.rn .sub { font-size: 12px; color: var(--sub); }
+.rn .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; display: grid; gap: 8px; font-size: 13px; }
+.rn .ledger { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.rn .ledger i { height: 22px; border-radius: 4px; border: 1px solid var(--line); background: var(--card); font-style: normal; font-size: 10px; display: grid; place-items: center; color: var(--sub); }
+.rn .ledger i.d { background: var(--royal); border-color: var(--royal); color: #fff; }
+.rn .ledger i.n { border: 1.5px solid var(--royal); color: var(--blue); font-weight: 700; }
+.rn .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.rn .chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: #fdf1e1; color: var(--warn); }
+.rn .lbl { font-size: 11px; font-weight: 600; color: var(--sub); }
+.rn .reply { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 4px; }
+.rn .btn { background: var(--blue); color: #fff; border-radius: 10px; padding: 12px; font-weight: 600; font-size: 15px; text-align: center; }
+.rn .btn.sec { background: var(--card); color: var(--blue); border: 1px solid var(--line); }
+.rn .tabbar { background: #fff; border-top: 1px solid var(--line); color: #8a90a0; }
+.rn .tabbar .on { color: var(--blue); }
+
+/* ---------- 3. Transit Map ---------- */
+.tm { --bg: #ffffff; --ink: #111111; --sub: #5c5c66; --line: #e6e6ea; --blue: #3557d6; --royal: #4169e1; --orange: #f0a52a; background: var(--bg); color: var(--ink); font-family: "Archivo", system-ui, sans-serif; }
+.tm .sign { background: var(--ink); color: #fff; border-radius: 6px; padding: 10px 12px; display: grid; gap: 2px; }
+.tm .sign b { font-size: 16px; font-weight: 700; }
+.tm .sign span { font-size: 12px; opacity: 0.8; }
+.tm .map { width: 100%; height: auto; display: block; }
+.tm .stop { border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; display: grid; gap: 6px; font-size: 13px; }
+.tm .k { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sub); }
+.tm .btn { background: var(--blue); color: #fff; border-radius: 8px; padding: 12px; font-weight: 700; font-size: 15px; text-align: center; }
+.tm .btn.sec { background: #fff; color: var(--ink); border: 2px solid var(--ink); }
+.tm .tabbar { border-top: 2px solid var(--ink); color: #777; }
+.tm .tabbar .on { color: var(--ink); font-weight: 700; }
+
+footer.end { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--rule); max-width: 70ch; }
+footer.end h2 { font-family: var(--font-head); font-size: 22px; margin: 0 0 8px; }
+footer.end p { color: var(--muted); margin: 0 0 8px; }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <h1>Buildpair, three ways</h1>
+  <p>Buildpair helps founders set real goals and get honest check-ins from peers who aren't too close to their work. Each direction below draws the same two screens with the same example data.</p>
+  <ul class="flow">
+    <li><span><b>Your week:</b> your season goal, this week's check-in, and your partner's outside view in reply.</span></li>
+    <li><span><b>Getting started:</b> connect Jira, pick the epics that matter this season, and they become your goals. Or add goals by hand.</span></li>
+  </ul>
+  <div class="legend"><span><b>Maya</b> (you) runs Ledgerly, invoicing for freelancers</span><span><b>Sam</b> is in Maya's group and runs Shipnote</span><span>All people and products are made-up examples</span></div>
+</header>
+
+<!-- 1. MARGIN NOTES -->
+<section class="dir" id="margin-notes">
+  <div class="dir-head">
+    <span class="rec">Recommended</span>
+    <h2>1. Margin Notes</h2>
+    <p>Your check-in reads like a page, and your partners' replies sit beside it like notes an editor writes in the margin, in royal blue. The outside view is right there in the layout: your words, then what someone a step back from them sees.</p>
+  </div>
+  <div class="dir-body">
+    <div class="phones">
+      <div>
+        <div class="phone"><div class="screen mn">
+          <div class="status"><span>9:41</span><i></i></div>
+          <div class="scr-body">
+            <div class="goal">
+              <span class="sub">Season 3 goal · week 3 of 6</span>
+              <span class="goal-t">20 paying customers for Ledgerly by Nov 21</span>
+              <div class="weeks"><i class="d"></i><i class="d"></i><i class="n"></i><i></i><i></i><i></i></div>
+            </div>
+            <div class="update">
+              <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">Your check-in</b><span class="chip">At risk</span></div>
+              <div><div class="lbl">Done</div>Stripe checkout is live. 4 customers so far.</div>
+              <div><div class="lbl">Stuck</div>Spent the week rebuilding settings instead of selling.</div>
+              <div><div class="lbl">How I'm doing</div>Tired. Not sure the goal is realistic.</div>
+            </div>
+            <div class="margin">
+              <div class="av" style="background:#c47f0c">S</div>
+              <div class="note">
+                <div><b>Going well</b>4 paying customers in 3 weeks is real traction.</div>
+                <div><b>I'd focus on</b>Selling. Nobody's leaving over the settings page.</div>
+                <div><b>Honest take</b>20 is a stretch. 12 would still be a great season.</div>
+                <span class="who">Sam · 2h ago</span>
+              </div>
+            </div>
+            <div class="btn">Reply to Sam</div>
+          </div>
+          <div class="tabbar">
+            <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 19c0-3 2.5-5 5-5s5 2 5 5M11 19c0-3 2.5-5 5-5s5 2 5 5"/></svg>Group</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Goals</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Discover</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</span>
+          </div>
+        </div></div>
+        <p class="cap">Your week</p>
+      </div>
+      <div>
+        <div class="phone"><div class="screen mn">
+          <div class="status"><span>9:41</span><i></i></div>
+          <div class="scr-body">
+            <div><span class="sub">Step 2 of 3</span><h3 class="lt">Pick this season's goals</h3></div>
+            <div class="sub" style="font-size:13px">From your Jira project <b style="color:#151a26">Ledgerly (LED)</b>. Choose up to 3 epics. Your group sees the goals, never your backlog.</div>
+            <div class="jira">
+              <div class="jira-row"><span class="box on"></span><div><div class="key">LED-12</div>Launch paid plans</div></div>
+              <div class="jira-row"><span class="box on"></span><div><div class="key">LED-30</div>Onboarding that converts</div></div>
+              <div class="jira-row"><span class="box"></span><div><div class="key">LED-41</div>Marketing site refresh</div></div>
+              <div class="jira-row"><span class="box"></span><div><div class="key">LED-7</div>Tech debt cleanup</div></div>
+            </div>
+            <div class="margin">
+              <div class="av" style="background:#3557d6">B</div>
+              <div class="note"><div>Next, you'll turn these into goals you can measure, like "20 paying customers" instead of "launch paid plans".</div></div>
+            </div>
+            <div class="btn">Use 2 epics</div>
+            <div class="btn sec">Add goals by hand</div>
+          </div>
+        </div></div>
+        <p class="cap">Getting started: Jira import</p>
+      </div>
+    </div>
+    <div class="notes"><dl>
+      <dt>Feels like</dt><dd>A thoughtful editor or mentor reading your work: personal, honest, calm.</dd>
+      <dt>Why it fits</dt><dd>The core idea, an outside view, becomes the layout itself. Your update is the page, and your partners' feedback is in the margin.</dd>
+      <dt>Signature</dt><dd>Margin notes in royal blue, with structured prompts (going well, I'd focus on, honest take) that make candid feedback easy to give.</dd>
+      <dt>Risk</dt><dd>Long threads could get cramped on small phones, so replies need a clean "see all" view.</dd>
+    </dl></div>
+  </div>
+</section>
+
+<!-- 2. RELEASE NOTES -->
+<section class="dir" id="release-notes">
+  <div class="dir-head">
+    <h2>2. Release Notes</h2>
+    <p>The calmest option and the closest to Cloudflare. Light grey canvas, crisp cards, royal blue as the single accent. Each check-in is a dated entry, and a six-cell Week Ledger shows the season.</p>
+  </div>
+  <div class="dir-body">
+    <div class="phones">
+      <div>
+        <div class="phone"><div class="screen rn">
+          <div class="status"><span>9:41</span><i></i></div>
+          <div class="scr-body">
+            <div><span class="sub">Season 3 · Week 3 of 6</span><h3 class="lt">20 paying customers</h3></div>
+            <div class="ledger"><i class="d">1</i><i class="d">2</i><i class="n">3</i><i>4</i><i>5</i><i>6</i></div>
+            <div class="card">
+              <div class="row"><b>Maya · Fri, Oct 31</b><span class="chip">At risk</span></div>
+              <div><div class="lbl">Done</div>Stripe checkout live. 4 customers so far.</div>
+              <div><div class="lbl">Stuck</div>Rebuilt settings instead of selling.</div>
+              <div><div class="lbl">How I'm doing</div>Tired. Not sure the goal is realistic.</div>
+              <div class="reply">
+                <div class="lbl">Sam replied</div>
+                <div><b>I'd focus on</b> selling. Nobody's leaving over settings.</div>
+                <div><b>Honest take</b> 20 is a stretch; 12 would still be great.</div>
+              </div>
+            </div>
+            <div class="btn">Reply to Sam</div>
+          </div>
+          <div class="tabbar">
+            <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 19c0-3 2.5-5 5-5s5 2 5 5M11 19c0-3 2.5-5 5-5s5 2 5 5"/></svg>Group</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Goals</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Discover</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</span>
+          </div>
+        </div></div>
+        <p class="cap">Your week</p>
+      </div>
+      <div>
+        <div class="phone"><div class="screen rn">
+          <div class="status"><span>9:41</span><i></i></div>
+          <div class="scr-body">
+            <div><span class="sub">Step 2 of 3</span><h3 class="lt">Pick this season's goals</h3></div>
+            <div class="card" style="gap:0;padding:4px 12px">
+              <div class="jira-row"><span class="box on"></span><div><div class="key">LED-12</div>Launch paid plans</div></div>
+              <div class="jira-row"><span class="box on"></span><div><div class="key">LED-30</div>Onboarding that converts</div></div>
+              <div class="jira-row"><span class="box"></span><div><div class="key">LED-41</div>Marketing site refresh</div></div>
+              <div class="jira-row"><span class="box"></span><div><div class="key">LED-7</div>Tech debt cleanup</div></div>
+            </div>
+            <div class="sub" style="font-size:13px">Your group sees the goals, never your backlog.</div>
+            <div class="btn">Use 2 epics</div>
+            <div class="btn sec">Add goals by hand</div>
+          </div>
+        </div></div>
+        <p class="cap">Getting started: Jira import</p>
+      </div>
+    </div>
+    <div class="notes"><dl>
+      <dt>Feels like</dt><dd>A well-made professional tool. Quiet and trustworthy.</dd>
+      <dt>Why it fits</dt><dd>Clear and easy to build, and closest to the Cloudflare look you liked.</dd>
+      <dt>Signature</dt><dd>The Week Ledger, which also appears on Discover profiles as a reliability signal.</dd>
+      <dt>Risk</dt><dd>It reads more like a status tool than a social space. Partner feedback sits inside a card rather than feeling like a person talking to you.</dd>
+    </dl></div>
+  </div>
+</section>
+
+<!-- 3. TRANSIT MAP -->
+<section class="dir" id="transit-map">
+  <div class="dir-head">
+    <h2>3. Transit Map</h2>
+    <p>Swiss signage style. Your goal is the destination, and each weekly check-in is a stop on the way. Group members' lines run alongside yours, so you can see who's on track at a glance.</p>
+  </div>
+  <div class="dir-body">
+    <div class="phones">
+      <div>
+        <div class="phone"><div class="screen tm">
+          <div class="status"><span>9:41</span><i></i></div>
+          <div class="scr-body">
+            <div class="sign"><b>To: 20 paying customers</b><span>Season 3 · Stop 3 of 6</span></div>
+            <svg class="map" viewBox="0 0 268 92" role="img" aria-label="Season route for Maya and Sam: stops 1 and 2 done, stop 3 now, goal at stop 6">
+              <line x1="14" y1="32" x2="232" y2="32" stroke="#3557d6" stroke-width="6" stroke-linecap="round"/>
+              <line x1="14" y1="52" x2="232" y2="52" stroke="#f0a52a" stroke-width="6" stroke-linecap="round"/>
+              <line x1="92" y1="32" x2="232" y2="32" stroke="#fff" stroke-width="2.5" stroke-dasharray="3 5"/>
+              <line x1="92" y1="52" x2="232" y2="52" stroke="#fff" stroke-width="2.5" stroke-dasharray="3 5"/>
+              <g fill="#fff" stroke="#111" stroke-width="2.5"><rect x="8" y="24" width="12" height="36" rx="6"/><rect x="47" y="24" width="12" height="36" rx="6"/><rect x="86" y="24" width="12" height="36" rx="6" stroke="#3557d6" stroke-width="3"/><rect x="125" y="24" width="12" height="36" rx="6" stroke="#bbb"/><rect x="164" y="24" width="12" height="36" rx="6" stroke="#bbb"/></g>
+              <rect x="210" y="18" width="46" height="48" rx="8" fill="#111"/>
+              <text x="233" y="46" fill="#fff" font-size="10" font-weight="700" text-anchor="middle" font-family="Archivo, sans-serif">GOAL</text>
+              <g font-size="10" font-weight="600" fill="#111" text-anchor="middle" font-family="Archivo, sans-serif"><text x="14" y="80">1</text><text x="53" y="80">2</text><text x="92" y="80" fill="#3557d6">3</text><text x="131" y="80" fill="#888">4</text><text x="170" y="80" fill="#888">5</text><text x="233" y="80">Nov 21</text></g>
+              <text x="14" y="12" font-size="9" fill="#3557d6" font-weight="700" font-family="Archivo, sans-serif">MAYA</text><text x="54" y="12" font-size="9" fill="#b0700a" font-weight="700" font-family="Archivo, sans-serif">SAM</text>
+            </svg>
+            <div class="stop">
+              <div class="k">Stop 3 · Maya · At risk</div>
+              <div>Stripe checkout live, 4 customers. Rebuilt settings instead of selling. Tired.</div>
+            </div>
+            <div class="stop">
+              <div class="k">Sam's view</div>
+              <div><b>Focus:</b> selling, not settings.<br><b>Honest take:</b> 20 is a stretch; 12 is a great season.</div>
+            </div>
+            <div class="btn">Reply to Sam</div>
+          </div>
+          <div class="tabbar">
+            <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 19c0-3 2.5-5 5-5s5 2 5 5M11 19c0-3 2.5-5 5-5s5 2 5 5"/></svg>Group</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Goals</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Discover</span>
+            <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</span>
+          </div>
+        </div></div>
+        <p class="cap">Your week</p>
+      </div>
+      <div>
+        <div class="phone"><div class="screen tm">
+          <div class="status"><span>9:41</span><i></i></div>
+          <div class="scr-body">
+            <div class="sign"><b>Plan your route</b><span>Step 2 of 3 · from Jira project LED</span></div>
+            <div class="stop" style="padding:4px 12px;gap:0">
+              <div class="jira-row"><span class="box on"></span><div><div class="key">LED-12</div>Launch paid plans</div></div>
+              <div class="jira-row"><span class="box on"></span><div><div class="key">LED-30</div>Onboarding that converts</div></div>
+              <div class="jira-row"><span class="box"></span><div><div class="key">LED-41</div>Marketing site refresh</div></div>
+              <div class="jira-row"><span class="box"></span><div><div class="key">LED-7</div>Tech debt cleanup</div></div>
+            </div>
+            <div style="font-size:13px;color:#5c5c66">Picked epics become stops on your route. Your group sees the route, never your backlog.</div>
+            <div class="btn">Use 2 epics</div>
+            <div class="btn sec">Add goals by hand</div>
+          </div>
+        </div></div>
+        <p class="cap">Getting started: Jira import</p>
+      </div>
+    </div>
+    <div class="notes"><dl>
+      <dt>Feels like</dt><dd>Subway signage and Swiss posters: bold, graphic, memorable.</dd>
+      <dt>Why it fits</dt><dd>Goals as destinations is easy to grasp for any founder, and the route makes progress visible at a glance.</dd>
+      <dt>Signature</dt><dd>The season route, with everyone's lines heading to their goal.</dd>
+      <dt>Risk</dt><dd>The hardest to build well, especially with 4–5 lines on a phone. The feedback (the core idea) gets less space than the map.</dd>
+    </dl></div>
+  </div>
+</section>
+
+<footer class="end">
+  <h2>What I need from you</h2>
+  <p>Pick a direction, or a mix such as "Margin Notes with the Week Ledger". I'll then build the full design system in it: colors, type, spacing, components, and the iPhone, Android and web rules, plus the theme file the app will use.</p>
+  <p>Earlier versions of this page also showed a sporty "Training Partner" direction and a generic startup look. I dropped both because they pull toward the gamified or template feel you want to avoid.</p>
+</footer>
+</div>
+
+</html>

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Buildpair Watching</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Schibsted+Grotesk:wght@500;600;700&display=swap">
+<style>
+
+/* Layout: a walkthrough sheet. Page chrome follows the viewer's theme; device frames are fixed-light specimens of the Margin Notes direction. */
+:root {
+  --page: #f4f5f8;
+  --ink: #141823;
+  --muted: #5b6272;
+  --rule: #dfe2ea;
+  --accent: #3557d6;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-head: "Schibsted Grotesk", "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --page: #10131a; --ink: #e8eaf0; --muted: #9aa1b2; --rule: #2a2f3b; --accent: #8da8ff; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --page: #10131a; --ink: #e8eaf0; --muted: #9aa1b2; --rule: #2a2f3b; --accent: #8da8ff; color-scheme: dark; }
+body { background: var(--page); color: var(--ink); font-family: var(--font-ui); font-size: 16px; line-height: 1.55; padding-inline: 16px; padding-block: 0 72px; }
+.wrap { max-width: 1180px; margin-inline: auto; }
+header.top { padding-block: 44px 8px; max-width: 70ch; }
+header.top h1 { font-family: var(--font-head); font-weight: 700; font-size: clamp(30px, 4.6vw, 46px); line-height: 1.06; letter-spacing: -0.02em; margin: 0 0 14px; text-wrap: balance; }
+header.top p { color: var(--muted); margin: 0 0 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); margin-top: 14px; }
+.legend b { color: var(--ink); font-weight: 600; }
+section.step { margin-top: 52px; padding-top: 26px; border-top: 1px solid var(--rule); display: grid; grid-template-columns: 1fr; gap: 24px; align-items: start; }
+@media (min-width: 900px) { section.step { grid-template-columns: 320px minmax(0, 1fr); } }
+.explain { display: grid; gap: 10px; min-width: 0; max-width: 60ch; }
+.explain h2 { font-family: var(--font-head); font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 0; }
+.explain p { margin: 0; color: var(--muted); }
+.explain ul { margin: 0; padding-left: 18px; color: var(--muted); display: grid; gap: 6px; }
+.explain b { color: var(--ink); }
+.order { grid-row: 1; }
+@media (min-width: 900px) { .order { grid-row: auto; } }
+
+/* Phone */
+.phone { width: 300px; max-width: 100%; border-radius: 38px; padding: 9px; background: #0d0f14; box-shadow: 0 18px 40px -18px rgba(10, 14, 30, 0.45); }
+.screen { border-radius: 30px; overflow: hidden; min-height: 620px; display: flex; flex-direction: column; }
+.status { display: flex; justify-content: space-between; align-items: center; padding: 12px 22px 4px; font-size: 12px; font-weight: 600; }
+.status i { width: 14px; height: 8px; border-radius: 2px; border: 1.2px solid currentColor; display: block; }
+.scr-body { padding: 6px 16px 16px; display: grid; gap: 12px; flex: 1; align-content: start; }
+.tabbar { display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 6px 14px; font-size: 10px; text-align: center; }
+.tabbar span { display: grid; justify-items: center; gap: 3px; }
+.tabbar svg { width: 20px; height: 20px; }
+
+/* Margin Notes specimen tokens */
+.mn { --bg: #ffffff; --ink: #151a26; --sub: #5d6474; --faint: #8a90a0; --line: #e6e8ef; --blue: #3557d6; --royal: #4169e1; --tint: #eef2fe; --note-ink: #1d2c66; --ok: #1f8a4c; --ok-soft: #e6f4ec; --warn: #a35b00; --warn-soft: #fdf1e1; background: var(--bg); color: var(--ink); font-family: -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif; font-size: 13px; line-height: 1.4; }
+.mn .lt { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin: 2px 0 0; }
+.mn .sub { font-size: 12px; color: var(--sub); }
+.mn .sect { font-size: 13px; font-weight: 650; margin: 4px 0 -4px; }
+.mn .goal { display: grid; gap: 6px; padding: 12px 0; border-top: 1px solid var(--line); }
+.mn .goal:first-of-type { border-top: 0; padding-top: 0; }
+.mn .g-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mn .g-name { font-size: 15px; font-weight: 650; }
+.mn .bar { height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.mn .bar i { display: block; height: 100%; background: var(--royal); border-radius: 3px; }
+.mn .g-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--sub); font-size: 12px; font-variant-numeric: tabular-nums; }
+.mn .faces { display: flex; align-items: center; }
+.mn .faces i { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; display: grid; place-items: center; font-style: normal; font-size: 9px; font-weight: 700; color: #fff; }
+.mn .faces i + i { margin-left: -6px; }
+.mn .lock { display: inline-flex; align-items: center; gap: 4px; color: var(--faint); font-size: 12px; }
+.mn .lock svg { width: 12px; height: 12px; }
+.mn .todo { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); }
+.mn .todo:first-of-type { border-top: 0; }
+.mn .ck { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #b4bac8; margin-top: 1px; }
+.mn .ck.on { background: var(--royal); border-color: var(--royal); position: relative; }
+.mn .ck.on::after { content: ""; position: absolute; left: 5px; top: 3px; width: 4px; height: 8px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg); }
+.mn .todo .for { color: var(--sub); font-size: 11px; }
+.mn .done-t { color: var(--faint); text-decoration: line-through; }
+.mn .tag { font-size: 10px; font-weight: 600; color: var(--sub); background: #f1f2f6; border-radius: 4px; padding: 1px 5px; margin-left: 4px; }
+.mn .margin { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; }
+.mn .av { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; flex: none; }
+.mn .av.lg { width: 40px; height: 40px; font-size: 14px; }
+.mn .note { background: var(--tint); border-radius: 4px 12px 12px 12px; padding: 10px 11px; display: grid; gap: 7px; color: var(--note-ink); }
+.mn .note b { font-size: 11px; font-weight: 700; color: var(--blue); display: block; margin-bottom: 1px; }
+.mn .who { font-size: 11px; color: var(--sub); }
+.mn .event { display: grid; grid-template-columns: 26px 1fr; gap: 8px; color: var(--sub); font-size: 12px; align-items: center; }
+.mn .event .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--royal); justify-self: center; }
+.mn .btn { background: var(--blue); color: #fff; border-radius: 10px; padding: 12px; font-weight: 600; font-size: 15px; text-align: center; }
+.mn .btn.sec { background: transparent; color: var(--blue); border: 1px solid var(--line); }
+.mn .chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.mn .chip.ok { background: var(--ok-soft); color: var(--ok); }
+.mn .chip.warn { background: var(--warn-soft); color: var(--warn); }
+.mn .tabbar { border-top: 1px solid var(--line); color: var(--faint); background: #fff; }
+.mn .tabbar .on { color: var(--blue); }
+.mn .quiet { display: grid; gap: 8px; border: 1px dashed #c9cfdd; border-radius: 10px; padding: 10px 11px; color: var(--sub); }
+.mn .quiet strong { color: var(--ink); font-weight: 600; }
+.mn .actions { display: flex; gap: 6px; }
+.mn .actions span { font-size: 12px; font-weight: 600; color: var(--blue); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+.mn .opt { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 11px 0; border-top: 1px solid var(--line); }
+.mn .opt:first-of-type { border-top: 0; }
+.mn .radio { width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #b4bac8; margin-top: 1px; }
+.mn .radio.on { border: 6px solid var(--blue); }
+.mn .opt-t { font-weight: 600; font-size: 14px; }
+.mn .people { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mn .person { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 3px; font-size: 12px; }
+.mn .person.on { border-color: var(--blue); background: var(--tint); color: var(--note-ink); font-weight: 600; }
+.mn .person i { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 9px; font-weight: 700; color: #fff; }
+.mn .sheet-handle { width: 36px; height: 5px; border-radius: 3px; background: #d6d9e2; justify-self: center; }
+.mn .reasons { display: flex; flex-wrap: wrap; gap: 6px; }
+.mn .reasons span { font-size: 11px; background: var(--tint); color: var(--note-ink); padding: 3px 8px; border-radius: 6px; font-weight: 500; }
+.mn .card { border: 1px solid var(--line); border-radius: 12px; padding: 13px; display: grid; gap: 10px; }
+.mn .lbl { font-size: 11px; font-weight: 600; color: var(--sub); }
+.mn .row { display: flex; gap: 10px; align-items: center; }
+.mn .quick { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; background: #f3f5fa; border-radius: 10px; padding: 9px 12px; font-size: 14px; }
+.mn .quick span { color: var(--blue); font-weight: 700; }
+.mn .quick em { font-style: normal; font-size: 11px; color: var(--blue); background: var(--tint); border-radius: 4px; padding: 1px 6px; flex-basis: 100%; width: fit-content; margin-left: 16px; }
+.mn .thread { display: grid; gap: 10px; }
+.mn .ev { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: start; }
+.mn .ev-mark { width: 22px; height: 22px; border-radius: 50%; background: var(--royal); position: relative; justify-self: center; }
+.mn .ev-mark::after { content: ""; position: absolute; left: 8px; top: 5px; width: 4px; height: 9px; border-right: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(45deg); }
+.mn .ev-mark.skip { background: #fff; border: 1.5px solid #b4bac8; }
+.mn .ev-mark.skip::after { left: 5px; top: 9px; width: 9px; height: 0; border-right: 0; border-bottom: 2px solid #8a90a0; transform: none; }
+.mn .ev-text { font-size: 13px; }
+.mn .ev-text .when { color: var(--faint); font-size: 11px; margin-left: 4px; }
+.mn .reacts { display: flex; gap: 4px; margin-top: 4px; }
+.mn .reacts span { font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; color: var(--sub); }
+.mn .reacts span.mine { border-color: var(--royal); color: var(--blue); background: var(--tint); }
+.mn .update-msg { background: #f3f5fa; border-radius: 4px 12px 12px 12px; padding: 9px 11px; }
+.mn .sys { text-align: center; font-size: 11px; color: var(--sub); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; }
+.mn .compose { display: flex; gap: 6px; align-items: center; border-top: 1px solid var(--line); padding: 10px 12px 14px; background: #fff; }
+.mn .compose .field { flex: 1; border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; color: var(--faint); font-size: 13px; }
+.mn .compose .pill { font-size: 12px; font-weight: 600; color: var(--blue); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
+.mn .seg { display: grid; grid-template-columns: 1fr 1fr; background: #eceef3; border-radius: 9px; padding: 2px; font-size: 12px; font-weight: 600; text-align: center; }
+.mn .seg span { padding: 6px; border-radius: 7px; color: var(--sub); }
+.mn .seg .on { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+/* Web frame */
+.browser-wrap { overflow-x: auto; padding-bottom: 6px; }
+.browser { width: 940px; border-radius: 12px; overflow: hidden; border: 1px solid #c9cdd8; box-shadow: 0 18px 40px -22px rgba(10, 14, 30, 0.45); }
+.chrome { background: #e9ebf0; padding: 9px 12px; display: flex; gap: 6px; align-items: center; }
+.chrome i { width: 10px; height: 10px; border-radius: 50%; background: #c4c8d2; }
+.chrome .url { margin-left: 12px; background: #fff; border-radius: 6px; padding: 3px 12px; font-size: 11px; color: #5d6474; font-family: "Inter", sans-serif; }
+.web { display: grid; grid-template-columns: 190px 1fr 280px; min-height: 520px; }
+.web .side { background: #f7f8fb; border-right: 1px solid var(--line); padding: 18px 12px; display: grid; gap: 4px; align-content: start; font-size: 13px; }
+.web .side .brand { font-weight: 700; font-size: 15px; margin: 0 8px 14px; display: flex; align-items: center; gap: 8px; }
+.web .side .brand svg { width: 22px; height: 22px; }
+.web .side a { color: var(--sub); text-decoration: none; padding: 7px 10px; border-radius: 7px; display: flex; justify-content: space-between; }
+.web .side a.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.web .side .count { font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.web .main { padding: 24px 28px; display: grid; gap: 14px; align-content: start; }
+.web .main h3 { font-size: 24px; letter-spacing: -0.02em; margin: 0; }
+.web .marg { border-left: 1px solid var(--line); background: #fbfbfd; padding: 24px 18px; display: grid; gap: 14px; align-content: start; }
+.web .marg h4 { margin: 0; font-size: 12px; font-weight: 600; color: var(--sub); }
+
+footer.end { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--rule); max-width: 70ch; }
+footer.end h2 { font-family: var(--font-head); font-size: 22px; margin: 0 0 8px; }
+footer.end p { color: var(--muted); margin: 0 0 8px; }
+</style>
+<style>
+/* Watching options: chat-list rows and an activity inbox, in the Margin Notes specimen tokens. */
+.grid4 { display: flex; flex-wrap: wrap; gap: 26px; margin-top: 8px; }
+.opt-col { display: grid; gap: 12px; width: 300px; max-width: 100%; align-content: start; }
+.opt-col h2 { font-family: var(--font-head); font-size: 22px; line-height: 1.2; margin: 0; }
+.opt-col .rec { font-size: 12px; font-weight: 600; color: var(--accent); }
+.opt-col p { margin: 0; font-size: 14px; color: var(--muted); }
+.opt-col ul { margin: 0; padding-left: 18px; font-size: 14px; color: var(--muted); display: grid; gap: 4px; }
+.mn .topbar { display: flex; justify-content: space-between; align-items: center; }
+.mn .bell { position: relative; width: 30px; height: 30px; display: grid; place-items: center; color: var(--ink); }
+.mn .bell svg { width: 22px; height: 22px; }
+.mn .bell b { position: absolute; top: 0; right: -2px; min-width: 16px; height: 16px; border-radius: 8px; background: var(--blue); color: #fff; font-size: 10px; display: grid; place-items: center; padding: 0 4px; }
+.mn .chats { display: grid; }
+.mn .chat { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.mn .chat:first-child { border-top: 0; }
+.mn .chat .av { width: 40px; height: 40px; font-size: 14px; }
+.mn .chat .t { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn .chat .t span { font-weight: 400; color: var(--sub); }
+.mn .chat .p { font-size: 12px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn .chat .p.unread { color: var(--ink); font-weight: 500; }
+.mn .chat .r { display: grid; justify-items: end; gap: 4px; font-size: 11px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.mn .dot-u { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+.mn .mini-bar { height: 3px; border-radius: 2px; background: var(--line); margin-top: 5px; overflow: hidden; }
+.mn .mini-bar i { display: block; height: 100%; background: var(--royal); }
+.mn .quiet-tag { font-size: 10px; font-weight: 600; color: var(--warn); background: var(--warn-soft); border-radius: 4px; padding: 1px 6px; }
+.mn .goalchips { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.mn .goalchips span { font-size: 10px; color: var(--sub); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.mn .needs { background: #f7f8fb; border: 1px solid var(--line); border-radius: 12px; padding: 4px 12px; }
+.mn .needs-h { font-size: 12px; font-weight: 600; color: var(--sub); padding: 8px 0 2px; }
+.mn .need { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.mn .need:first-of-type { border-top: 0; }
+.mn .need .av { width: 28px; height: 28px; font-size: 11px; }
+.mn .need .go { font-size: 12px; font-weight: 600; color: var(--blue); }
+.mn .act { display: grid; grid-template-columns: 32px 1fr; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.mn .act:first-of-type { border-top: 0; }
+.mn .act .av { width: 32px; height: 32px; font-size: 12px; }
+.mn .act .when { display: block; font-size: 11px; color: var(--faint); margin-top: 2px; }
+.mn .act.new { background: linear-gradient(90deg, var(--tint), transparent 85%); margin-inline: -16px; padding-inline: 16px; }
+.mn .grp-h { font-size: 12px; font-weight: 600; color: var(--sub); margin-top: 4px; }
+.mn .tabbar5 { grid-template-columns: repeat(5, 1fr); }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <h1>Watching, without cards</h1>
+  <p>Three ways to lay out the Watching tab as ongoing conversations, plus a notifications screen. All use the same made-up people: Sam, Alex, Priya and Chloe have shared goals with Maya (you).</p>
+</header>
+
+<div class="grid4">
+
+  <!-- A -->
+  <div class="opt-col">
+    <div class="phone"><div class="screen mn">
+      <div class="status"><span>9:41</span><i></i></div>
+      <div class="scr-body">
+        <div class="topbar"><h3 class="lt">Watching</h3><span class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><b>4</b></span></div>
+        <div class="chats">
+          <div class="chat"><div class="av" style="background:#c0392b">A</div><div style="min-width:0"><div class="t">Half marathon <span>· Alex</span></div><div class="p unread">Skipped long run: knee is sore</div><div class="mini-bar"><i style="width:42%"></i></div></div><div class="r">9:12<span class="dot-u"></span></div></div>
+          <div class="chat"><div class="av" style="background:#c47f0c">S</div><div style="min-width:0"><div class="t">Shipnote public beta <span>· Sam</span></div><div class="p unread">Sam completed Invite flow</div><div class="mini-bar"><i style="width:60%"></i></div></div><div class="r">8:40<span class="dot-u"></span></div></div>
+          <div class="chat"><div class="av" style="background:#7a4fb5">P</div><div style="min-width:0"><div class="t">100 subscribers <span>· Priya</span></div><div class="p">You: That intro email is great</div><div class="mini-bar"><i style="width:72%"></i></div></div><div class="r">Tue</div></div>
+          <div class="chat"><div class="av" style="background:#2f6f6a">C</div><div style="min-width:0"><div class="t">Novel draft <span>· Chloe</span></div><div class="p">Chloe wrote 1,200 words</div><div class="mini-bar"><i style="width:35%"></i></div></div><div class="r">Mon</div></div>
+          <div class="chat"><div class="av" style="background:#151a26">B</div><div style="min-width:0"><div class="t">Builders circle <span>· 4 people</span></div><div class="p">Chloe: Anyone up for Thursday?</div></div><div class="r">Sun</div></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12l4 4 10-10"/></svg>Today</span>
+        <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Watching</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Discover</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</span>
+      </div>
+    </div></div>
+    <h2>A. One chat per goal</h2>
+    <p>Like a messaging app: every shared goal is its own conversation, newest activity on top.</p>
+    <ul><li>Each row shows the latest event and a thin progress line.</li><li>Group chats sit in the same list.</li><li>Notifications live behind the bell.</li><li>Risk: someone sharing 4 goals fills your list.</li></ul>
+  </div>
+
+  <!-- B -->
+  <div class="opt-col">
+    <div class="phone"><div class="screen mn">
+      <div class="status"><span>9:41</span><i></i></div>
+      <div class="scr-body">
+        <div class="topbar"><h3 class="lt">Watching</h3><span class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><b>4</b></span></div>
+        <div class="chats">
+          <div class="chat"><div class="av" style="background:#c0392b">A</div><div style="min-width:0"><div class="t">Alex</div><div class="p unread">Skipped long run: knee is sore</div><div class="goalchips"><span>Half marathon</span><span>Read 12 books</span></div></div><div class="r">9:12<span class="dot-u"></span></div></div>
+          <div class="chat"><div class="av" style="background:#c47f0c">S</div><div style="min-width:0"><div class="t">Sam</div><div class="p unread">Completed Invite flow</div><div class="goalchips"><span>Shipnote public beta</span></div></div><div class="r">8:40<span class="dot-u"></span></div></div>
+          <div class="chat"><div class="av" style="background:#7a4fb5">P</div><div style="min-width:0"><div class="t">Priya</div><div class="p">You: That intro email is great</div><div class="goalchips"><span>100 subscribers</span><span>Gym 3x</span></div></div><div class="r">Tue</div></div>
+          <div class="chat"><div class="av" style="background:#2f6f6a">C</div><div style="min-width:0"><div class="t">Chloe</div><div class="p">Wrote 1,200 words</div><div class="goalchips"><span>Novel draft</span></div></div><div class="r">Mon</div></div>
+          <div class="chat"><div class="av" style="background:#151a26">B</div><div style="min-width:0"><div class="t">Builders circle</div><div class="p">Chloe: Anyone up for Thursday?</div><div class="goalchips"><span>4 people · 7 goals</span></div></div><div class="r">Sun</div></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12l4 4 10-10"/></svg>Today</span>
+        <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Watching</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Discover</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</span>
+      </div>
+    </div></div>
+    <h2>B. One chat per person</h2>
+    <p>Each person (or group) gets a single row. Tap in to see all the goals they share with you, each as its own thread.</p>
+    <ul><li>Feels like keeping up with friends, not tracking goals.</li><li>Scales well when people share many goals.</li><li>Risk: one extra tap to reach a specific goal.</li></ul>
+  </div>
+
+  <!-- C -->
+  <div class="opt-col">
+    <div class="phone"><div class="screen mn">
+      <div class="status"><span>9:41</span><i></i></div>
+      <div class="scr-body">
+        <div class="topbar"><h3 class="lt">Watching</h3><span class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><b>4</b></span></div>
+        <div class="needs">
+          <div class="needs-h">Check in on</div>
+          <div class="need"><div class="av" style="background:#c0392b">A</div><span><b>Alex</b> · Half marathon has been quiet for 9 days</span><span class="go">Say hi</span></div>
+          <div class="need"><div class="av" style="background:#7a4fb5">P</div><span><b>Priya</b> wrote her weekly reflection</span><span class="go">Reply</span></div>
+        </div>
+        <div class="chats">
+          <div class="chat"><div class="av" style="background:#c47f0c">S</div><div style="min-width:0"><div class="t">Sam</div><div class="p unread">Completed Invite flow</div></div><div class="r">8:40<span class="dot-u"></span></div></div>
+          <div class="chat"><div class="av" style="background:#c0392b">A</div><div style="min-width:0"><div class="t">Alex</div><div class="p unread">Skipped long run: knee is sore</div></div><div class="r">9:12<span class="dot-u"></span></div></div>
+          <div class="chat"><div class="av" style="background:#7a4fb5">P</div><div style="min-width:0"><div class="t">Priya</div><div class="p">You: That intro email is great</div></div><div class="r">Tue</div></div>
+          <div class="chat"><div class="av" style="background:#151a26">B</div><div style="min-width:0"><div class="t">Builders circle</div><div class="p">Chloe: Anyone up for Thursday?</div></div><div class="r">Sun</div></div>
+        </div>
+      </div>
+      <div class="tabbar">
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12l4 4 10-10"/></svg>Today</span>
+        <span class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>Watching</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>Discover</span>
+        <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>Profile</span>
+      </div>
+    </div></div>
+    <span class="rec">Recommended</span>
+    <h2>C. People chats + "Check in on"</h2>
+    <p>Option B's people list, with a short strip on top for the few things that need you right now: a quiet goal, a reflection waiting for your reply.</p>
+    <ul><li>The accountability moments can't get buried under chat.</li><li>The strip disappears when there's nothing to do.</li><li>The watcher-only nudges live here.</li></ul>
+  </div>
+
+  <!-- Notifications -->
+  <div class="opt-col">
+    <div class="phone"><div class="screen mn">
+      <div class="status"><span>9:41</span><i></i></div>
+      <div class="scr-body">
+        <div><span class="sub">‹ Watching</span><h3 class="lt" style="margin-top:6px">Activity</h3></div>
+        <div class="grp-h">Today</div>
+        <div>
+          <div class="act new"><div class="av" style="background:#c0392b">A</div><div><b>Alex</b> reacted 🔥 to your <b>Run 5k</b><span class="when">10 min ago · Gym 4x a week</span></div></div>
+          <div class="act new"><div class="av" style="background:#c47f0c">S</div><div><b>Sam</b> replied in <b>Launch Ledgerly v1</b>: "Cut scope rather than move the date?"<span class="when">1h ago</span></div></div>
+          <div class="act new"><div class="av" style="background:#7a4fb5">P</div><div><b>Priya</b> accepted your request to pair on <b>First 10 paying users</b><span class="when">3h ago</span></div></div>
+        </div>
+        <div class="grp-h">Earlier</div>
+        <div>
+          <div class="act"><div class="av" style="background:#3557d6">B</div><div>Your weekly reflection is ready to write for <b>Launch Ledgerly v1</b><span class="when">Fri</span></div></div>
+          <div class="act"><div class="av" style="background:#2f6f6a">C</div><div><b>Chloe</b> started watching <b>Gym 4x a week</b><span class="when">Thu</span></div></div>
+        </div>
+      </div>
+    </div></div>
+    <h2>Notifications: the Activity screen</h2>
+    <p>Everything that happened to <i>you</i>: reactions, replies, accepted requests, reminders. Opened from the bell at the top of Today and Watching.</p>
+    <ul><li>New items are lightly tinted until seen.</li><li>Tapping an item opens the right thread.</li><li>The same items arrive as phone notifications, which you can tune in settings.</li></ul>
+  </div>
+
+</div>
+
+<footer class="end">
+  <h2>Where notifications could live</h2>
+  <p><b>A bell</b> at the top of Today and Watching (drawn here) keeps four tabs and stays quiet. The alternative is a fifth <b>Activity</b> tab, which is more visible but adds another tab. I recommend the bell, because the "Check in on" strip already surfaces anything urgent.</p>
+  <p>Tell me which Watching layout you like (A, B or C, or a mix), and I'll fold it into the main screens page.</p>
+</footer>
+</div>
+
+</html>
