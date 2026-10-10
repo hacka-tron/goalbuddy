@@ -3,7 +3,7 @@
 Design work for rebranding GoalBuddy as **Buildpair**. No app code has changed yet; everything so far is product decisions, research and screen mockups.
 
 > **RESUME HERE (next session): review the desktop web screens with the owner, then the design system.**
-> All 14 desktop web screens are drawn in `docs/design/buildpair-web.html` (live copy: https://claude.ai/artifact/8sGnN5pw9Fz5uBV7McrJAV), with a parity checklist mapping every phone screen to its web version. Next: owner feedback on the web screens and the open web questions in section 4, then section 2 (design system).
+> All 14 desktop web screens are drawn and simplified after the owner's first review (spaces are now chat-first) in `docs/design/buildpair-web.html` (live copy: https://claude.ai/artifact/8sGnN5pw9Fz5uBV7McrJAV), with a parity checklist mapping every phone screen to its web version. Next: owner feedback on the web screens and the open web questions in section 4, then section 2 (design system).
 
 ## Where everything is
 
@@ -38,6 +38,8 @@ Layout: sidebar (navigation, your spaces, spaces you support, profile) · the pa
 - [x] Web-only: command palette and shortcuts sheet (web 11), Upcoming week view with drag and drop (web 12), weekly review on one screen (web 13)
 - [x] Window sizes: four layouts from wide desktop to phone width (web 14)
 - [ ] Not drawn for web yet: dark mode, onboarding, empty states, focus timer, Pro upgrade
+- [x] Owner review 2026-10-10: "too busy", and spaces should focus on the chat. Done: spaces are chat-first (list in a narrow panel that folds away); sidebar cut to Today, Upcoming, Supporting, Discover and Spaces, with the bell and profile at the bottom; Today's margin shows only "Check in on" and spaces with new messages; selecting and item details moved to Today; fewer chips, buttons and notes throughout
+- [ ] Redraw phone screen 3 chat-first to match (chat as the main view, the list as a collapsed strip above it)
 
 ## 2. Design system (after web)
 
@@ -72,7 +74,7 @@ Layout: sidebar (navigation, your spaces, spaces you support, profile) · the pa
 Full detail is in `PRODUCT.md`. In short:
 
 - **What it is:** a social, accountable to-do and goals app for **builders** (anyone making something: startups, side projects, AI-built apps, creators, small businesses), plus their life goals.
-- **Spaces:** everything lives in a space (a list plus one chat). Sharing is per space. A space with several people is the group; there is no separate group object.
+- **Spaces:** everything lives in a space (a list plus one chat). Sharing is per space. Inside a space the chat is the main view; planning happens on Today and finding people on Supporting and Discover (owner, 2026-10-10). A space with several people is the group; there is no separate group object.
 - **Item types:** decided by the schedule. One date = to-do; repeating = habit; deadline with steps = goal.
 - **Adding:** floating + (bottom-right, like TickTick) opens an add bar with natural language, a date chip and a space chip.
 - **Acting on items:** tap the circle = done; long-press = select, with an action bar (Skip today, Won't do, Update, Move, ••• full menu). Skips can carry a reason that goes to the chat.
