@@ -2,39 +2,42 @@
 
 Design work for rebranding GoalBuddy as **Buildpair**. No app code has changed yet; everything so far is product decisions, research and screen mockups.
 
-> **RESUME HERE (next session): desktop web design.**
-> The web version needs to be as good as the phone app, or better, because many people will use Buildpair from their desktops. Today only one laptop screen exists (screen 10 in `docs/design/buildpair-screens.html`). Start by auditing phone vs web parity (checklist below), then draw the web screens in the same Margin Notes style.
+> **RESUME HERE (next session): review the desktop web screens with the owner, then the design system.**
+> All 14 desktop web screens are drawn in `docs/design/buildpair-web.html` (live copy: https://claude.ai/artifact/8sGnN5pw9Fz5uBV7McrJAV), with a parity checklist mapping every phone screen to its web version. Next: owner feedback on the web screens and the open web questions in section 4, then section 2 (design system).
 
 ## Where everything is
 
 | What | Where |
 |---|---|
 | Product record (source of truth for what Buildpair is) | `PRODUCT.md` (written with the Impeccable `init` template) |
-| All current screens, with explanations | `docs/design/buildpair-screens.html` (open in a browser). Live copy: https://claude.ai/artifact/RjgGwJC5qCx16sWVwUmEK1 |
+| Desktop web screens (14 screens and a parity checklist) | `docs/design/buildpair-web.html`. Live copy: https://claude.ai/artifact/8sGnN5pw9Fz5uBV7McrJAV |
+| All current phone screens, with explanations | `docs/design/buildpair-screens.html` (open in a browser). Live copy: https://claude.ai/artifact/RjgGwJC5qCx16sWVwUmEK1 |
 | Earlier explorations (superseded, kept for reference) | `docs/design/explorations/buildpair-directions.html` (visual directions; "Margin Notes" was chosen), `docs/design/explorations/buildpair-watching-options.html` (Supporting tab layouts; A+C combined was chosen) |
 | Web research (onboarding, feeds, check-ins, integrations, competitors, accountability science, Cloudflare design language) | `docs/research/buildpair-web-research.md`. Live copy: https://claude.ai/artifact/AFeLHvtVnRDaxg9fKdSdEj |
 | First codebase-mapped report (partly superseded) | `docs/research/developer-friendly.md` |
 
-## 1. Desktop web (next)
+## 1. Desktop web (drawn, awaiting owner review)
 
-Goal: feature parity with the phone app, designed for a big screen rather than stretched.
+Goal: feature parity with the phone app, designed for a big screen rather than stretched. Drawn 2026-10-10 in `docs/design/buildpair-web.html`.
 
-Parity checklist (phone screen → web equivalent still to design):
+Layout: sidebar (navigation, your spaces, spaces you support, profile) · the page (Today, a space's list, Discover) · the margin (chat, people's notes, item details).
 
-- [ ] Today, grouped by space (phone screen 1)
-- [ ] Add bar from the floating + (screen 1): on web also a keyboard shortcut (for example Q or N) and natural-language entry; date chip, space chip
-- [ ] Scheduler (date, time, reminder, repeat) as a popover instead of a sheet
-- [ ] Spaces list (screen 2): likely the left sidebar
-- [ ] Inside a space (screen 3): list and chat side by side; the current laptop mockup (screen 10) is the starting point
-- [ ] **Chat views**: stacked reactions with who-reacted on hover, update notes, skip reasons, message box
-- [ ] Long-press equivalent: right-click or hover menu, multi-select (Shift/Cmd-click), and the action bar with Skip today / Won't do / Update / Move / ••• full menu
-- [ ] Space picker, New space setup, people screen, add people (name, username, Buildpair ID), invite link, Show on Discover (screens 4–5)
-- [ ] Supporting (screen 6): "Check in on" strip plus one row per shared space, and a supporter's view of someone's space with suggested replies
-- [ ] Discover board, offer support, Requests (screen 7)
-- [ ] Profile, badges, compliments, settings (screen 8)
-- [ ] Activity / notifications panel (bell)
-- [ ] Ideas where web can be better than phone: three-pane layout (spaces · list · chat), Cmd+K command palette, keyboard shortcuts, drag items between spaces, wide calendar or week view, weekly review on one screen
-- [ ] Responsive breakpoints (narrow window → phone-like layout)
+- [x] Today, grouped by space; hover actions on rows; margin shows "Check in on" and the last day's notes (web 1)
+- [x] Add bar always at the top, Q from any screen, highlighted natural-language words, date and space chips (web 2)
+- [x] Scheduler and space picker as popovers (web 2)
+- [x] Spaces list as the sidebar's "Your spaces" (web 1)
+- [x] Inside a space: list and chat side by side, List / Week / People / Requests tabs, goal steps indented (web 3)
+- [x] Chat: stacked reactions with who-reacted on hover, message hover toolbar, update notes, skip reasons, "Update an item" in the message box (web 3)
+- [x] Selecting: click edge or X, Shift/Cmd-click, floating action bar with keys, right-click full menu with Move to submenu, "Add a reason" toast, bulk edit in the margin (web 4)
+- [x] Item details in the margin, drawn for a habit (this week, 12-week history, weeks on target, skips and notes) (web 5)
+- [x] People and sharing dialog, same dialog for New space (web 6)
+- [x] Supporting as a two-pane inbox with suggested replies (web 7)
+- [x] Discover grid with filters, Offer support dialog, Requests tab (web 8)
+- [x] Profile, settings (browser notifications, email digest, keyboard shortcuts), compliment dialog (web 9)
+- [x] Activity panel (web 10)
+- [x] Web-only: command palette and shortcuts sheet (web 11), Upcoming week view with drag and drop (web 12), weekly review on one screen (web 13)
+- [x] Window sizes: four layouts from wide desktop to phone width (web 14)
+- [ ] Not drawn for web yet: dark mode, onboarding, empty states, focus timer, Pro upgrade
 
 ## 2. Design system (after web)
 
@@ -56,6 +59,9 @@ Parity checklist (phone screen → web equivalent still to design):
 
 ## 4. Open questions
 
+- [ ] Web: should a habit count "weeks on target" (as drawn in web 5) everywhere, including the phone, instead of any daily streak?
+- [ ] Web: is the "Upcoming" week view (web 12) also wanted on the phone as a calendar tab or a Today toggle?
+- [ ] Web: single-letter shortcuts (Q, S, W, U, M) on by default, with an off switch in settings (as drawn), or off by default?
 - [ ] Simplify the per-person "Supporter ▾" menu on the people screen to long-press → Remove, like a group chat?
 - [ ] Team spaces later (everyone in a space adds their own goals, for crews or cohorts)?
 - [ ] Final logo: trademark search on the name and mark, and a designer's refinement. A Buildpair domain (only `goalbuddy.app` is owned today).
