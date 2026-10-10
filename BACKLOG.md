@@ -2,8 +2,8 @@
 
 Design work for rebranding GoalBuddy as **Buildpair**. No app code has changed yet; everything so far is product decisions, research and screen mockups.
 
-> **RESUME HERE (next session): owner review of the architecture, then create the new `buildpair` repo.**
-> Clean-slate architecture: `docs/architecture/buildpair-architecture.md` (live page: https://claude.ai/artifact/2ouhaieSYMSy3oFrVPUSJP). One Expo app; Cloudflare Workers with a Durable Object per space (chat and sync) and per user; D1 and R2; GitHub Actions + EAS. Decided 2026-10-10: domain `buildpair.app`, public repo, email-code sign-in then Google (plus Sign in with Apple on iOS), privacy-first cookieless analytics. Next: create the public `buildpair` repo (owner to confirm the GitHub owner) and start milestone 1 (foundations). Open: a license for the public repo. The next big product feature after the core is integrations (Jira first).
+> **RESUME HERE (next session): work continues in the new repo https://github.com/hacka-tron/buildpair.**
+> Milestone 1 (foundations) pushed 2026-10-10: monorepo, sync protocol, Cloudflare Worker with a Durable Object per space, Expo app (email-code sign-in, spaces, live chat, invites), CI/CD with previews. Owner next: the one-time setup in `docs/SETUP.md` of that repo (Cloudflare, Resend, Expo, GitHub environments) so deploys switch on. Build next: milestone 3 (items in full: habits, goals, schedules, Today, reminders). This repo now holds design history only.
 
 ## Where everything is
 
