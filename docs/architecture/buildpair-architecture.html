@@ -1,0 +1,398 @@
+<title>Buildpair Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Schibsted+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout: one reading column with a jump list; tables and the figure scroll inside their own frames. Buildpair brand: royal blue on calm neutrals. */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --fg: #151a26;
+  --muted: #5b6272;
+  --rule: #dfe2ea;
+  --accent: #3557d6;
+  --tint: #eef2fe;
+  --ok: #1f7a46;
+  --font-head: "Schibsted Grotesk", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0f1218; --surface: #171b24; --fg: #e8eaf0; --muted: #9aa1b2; --rule: #2a2f3b; --accent: #8da8ff; --tint: #1b2340; --ok: #6fd39b; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --bg: #0f1218; --surface: #171b24; --fg: #e8eaf0; --muted: #9aa1b2; --rule: #2a2f3b; --accent: #8da8ff; --tint: #1b2340; --ok: #6fd39b; color-scheme: dark; }
+
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.6; padding-inline: 16px; padding-block: 0 80px; }
+.wrap { max-width: 900px; margin-inline: auto; }
+header.top { padding-block: 48px 12px; display: grid; gap: 12px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+h1 { font-family: var(--font-head); font-size: clamp(32px, 5vw, 48px); line-height: 1.05; letter-spacing: -0.025em; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); margin: 0; max-width: 64ch; }
+nav.jump { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 14px; padding-block: 6px 4px; }
+nav.jump a { color: var(--accent); text-decoration: none; }
+nav.jump a:hover, nav.jump a:focus-visible { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+section { margin-top: 48px; display: grid; gap: 14px; }
+section > * { min-width: 0; }
+h2 { font-family: var(--font-head); font-size: 26px; line-height: 1.2; letter-spacing: -0.015em; margin: 0; text-wrap: balance; padding-top: 22px; border-top: 1px solid var(--rule); }
+h3 { font-size: 17px; margin: 8px 0 0; }
+p { margin: 0; max-width: 68ch; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; max-width: 70ch; }
+li::marker { color: var(--muted); }
+code { font-family: var(--font-mono); font-size: 0.88em; background: var(--tint); border-radius: 4px; padding: 1px 5px; }
+.muted { color: var(--muted); }
+
+.decision { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 20px 22px; display: grid; gap: 12px; }
+.decision ul { gap: 8px; }
+.decision b { color: var(--fg); }
+.price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.price strong { font-family: var(--font-head); font-size: 30px; letter-spacing: -0.02em; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 12px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.5; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-top: 1px solid var(--rule); }
+thead th { border-top: 0; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+td:first-child { font-weight: 600; }
+.tbl.wide table { min-width: 720px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { font-weight: 700; border-top: 2px solid var(--rule); }
+
+figure { margin: 0; display: grid; gap: 10px; }
+.fig { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 16px; }
+.fig svg { display: block; width: 100%; min-width: 720px; height: auto; color: var(--fg); }
+figcaption { font-size: 14px; color: var(--muted); max-width: 70ch; }
+
+.steps { counter-reset: s; list-style: none; padding-left: 0; display: grid; gap: 10px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; }
+.steps li::before { content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--tint); color: var(--accent); font-weight: 700; font-size: 13px; display: grid; place-items: center; margin-top: 1px; }
+
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.card h3 { margin: 0; font-size: 15px; }
+.card p, .card ul { font-size: 14px; color: var(--muted); }
+pre.tree { margin: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.55; }
+.sources { font-size: 14px; }
+.sources a { color: var(--accent); }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+<header class="top">
+  <span class="eyebrow">Buildpair · clean-slate architecture · October 10, 2026</span>
+  <h1>How to build Buildpair from scratch</h1>
+  <p class="lede">A design for a new repository that ignores the GoalBuddy code. It is tuned for a chat-first product, 1,000 daily users at the start, free tiers wherever they exist, low latency everywhere, and a production-grade release pipeline. Prices and versions were checked on the date above.</p>
+  <nav class="jump" aria-label="Sections">
+    <a href="#decision">Decision</a><a href="#stack">Stack</a><a href="#message">How a message travels</a><a href="#data">Where data lives</a><a href="#sync">Sync</a><a href="#chat">Chat</a><a href="#jobs">Reminders</a><a href="#integrations">Integrations</a><a href="#app">The app</a><a href="#cicd">CI/CD</a><a href="#cost">Cost</a><a href="#alternatives">Alternatives</a><a href="#risks">Risks</a><a href="#order">Build order</a><a href="#sources">Sources</a>
+  </nav>
+</header>
+
+<section id="decision">
+  <h2>The decision</h2>
+  <div class="decision">
+    <ul>
+      <li><b>One Expo app</b> (React Native, Expo SDK 57) for iOS, Android and the web, with desktop layouts inside the same app.</li>
+      <li><b>Cloudflare for everything server-side.</b> Workers run the API. Each space is a <b>Durable Object</b> that owns that space's list and chat. Each person has one for their inbox and reminders. <b>D1</b> holds global data, <b>R2</b> holds files, and Queues and Workflows run background jobs.</li>
+      <li><b>SQLite everywhere.</b> Inside each space's Durable Object (the space's source of truth), in D1 (managed SQLite for global data), and on each device (the local copy that makes the app instant and work offline).</li>
+      <li><b>TypeScript end to end.</b> One shared package of domain rules runs on the device for instant updates and on the server for the real ones.</li>
+      <li><b>GitHub Actions and EAS</b> for CI/CD: a preview environment per pull request, staging on merge, approved production releases with gradual rollout and one-command rollback.</li>
+    </ul>
+    <div class="price"><strong>$5–40</strong><span class="muted">a month at 1,000 daily users, plus Apple's $99 a year. Details in <a href="#cost">Cost</a>.</span></div>
+  </div>
+  <p>The product's unit of everything is the <b>space</b>: a list plus one chat, shared with a few people. The architecture uses the same unit. Each space becomes a small, strongly consistent database that also runs the space's live connections, placed near its members.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Designed for</th><th>Value</th></tr></thead>
+    <tbody>
+      <tr><td>Daily users</td><td>Up to 1,000 at first (about 3,000 monthly)</td></tr>
+      <tr><td>Space size</td><td>1–10 people typical; Discover may create spaces of 20–50 later</td></tr>
+      <tr><td>Core loops</td><td>Tick an item instantly, chat without friction, see your people's progress live</td></tr>
+      <tr><td>Platforms</td><td>iOS, Android, desktop web (as good as the phone or better)</td></tr>
+      <tr><td>Next big feature</td><td>Integrations, starting with Jira</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="stack">
+  <h2>The stack</h2>
+  <div class="tbl wide"><table>
+    <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>App</td><td>Expo SDK 57 (React Native 0.86, React 19.2, New Architecture, Hermes V1), Expo Router, React Native Web 0.21</td><td>One codebase for three platforms, real URLs on the web, over-the-air updates. Bluesky ships iOS, Android and web from one React Native codebase.</td></tr>
+      <tr><td>Data on the device</td><td>SQLite (expo-sqlite) on phones, IndexedDB on the web, behind one interface</td><td>Screens open from local data, work offline and survive restarts</td></tr>
+      <tr><td>Live connection</td><td>WebSockets with <code>partysocket</code></td><td>Reconnects with backoff and buffers while offline; runs in browsers and React Native</td></tr>
+      <tr><td>API</td><td>Hono on Cloudflare Workers, Zod schemas shared with the app</td><td>Runs near every user; no servers to manage or warm up</td></tr>
+      <tr><td>Each space</td><td><code>SpaceRoom</code> Durable Object with SQLite and the WebSocket Hibernation API</td><td>One writer per space means ordering for free; idle sockets cost nothing; storage sits next to the room. tldraw runs its multiplayer the same way.</td></tr>
+      <tr><td>Each person</td><td><code>UserHub</code> Durable Object</td><td>Their spaces, unread counts, devices, Activity inbox and reminder schedule; one socket per device</td></tr>
+      <tr><td>Global data</td><td>Cloudflare D1 with read replication</td><td>Accounts, usernames, Buildpair IDs, invite links, Discover listings, offers, integrations, reports</td></tr>
+      <tr><td>Files</td><td>Cloudflare R2</td><td>Avatars and attachments, no egress fees</td></tr>
+      <tr><td>Background work</td><td>Durable Object alarms, Queues, Cron Triggers, Workflows</td><td>Per-space checks, notification fan-out, integration syncs with retries</td></tr>
+      <tr><td>Sign-in</td><td>Better Auth on Workers + D1: email code, Sign in with Apple, Google; passkeys later</td><td>Open source, our data, no per-user fees</td></tr>
+      <tr><td>Push</td><td>Expo Push Service for phones, Web Push for desktop browsers</td><td>Free; one API for APNs and FCM</td></tr>
+      <tr><td>Email</td><td>Cloudflare Email Sending (public beta, 3,000 a month included) behind an adapter</td><td>Sign-in codes, offers, opt-in summaries; SES or Resend can drop in</td></tr>
+      <tr><td>Errors and analytics</td><td>Sentry, PostHog (chat text masked), Workers Logs</td><td>Free tiers cover this scale</td></tr>
+      <tr><td>CI/CD</td><td>GitHub Actions, Turborepo, EAS Build/Submit/Update, Wrangler, Terraform</td><td>Previews per PR, gated releases, reproducible infrastructure</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="message">
+  <h2>How a message travels</h2>
+  <p>Chat is the core of the product, so this is the path the architecture is built around. Maya sends a message in her Life space; Jordan has the space open on his laptop; Kim's phone is in her pocket.</p>
+  <figure>
+    <div class="fig">
+      <svg viewBox="0 0 880 380" role="img" aria-label="A message goes from Maya's phone to the Life space's Durable Object, which stores it with the next sequence number, acknowledges Maya, sends it straight to Jordan's open socket, and pokes Kim's UserHub, which queues a push notification because Kim isn't online.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="currentColor"/></marker>
+          <marker id="aha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill:var(--accent)"/></marker>
+        </defs>
+        <g font-family="Inter, system-ui, sans-serif" font-size="12" fill="currentColor">
+          <text x="110" y="18" text-anchor="middle" font-weight="600" opacity="0.6">DEVICES</text>
+          <text x="440" y="18" text-anchor="middle" font-weight="600" opacity="0.6">CLOUDFLARE EDGE</text>
+          <text x="760" y="18" text-anchor="middle" font-weight="600" opacity="0.6">DELIVERY</text>
+
+          <rect x="20" y="40" width="180" height="58" rx="10" fill="none" stroke="currentColor"/>
+          <text x="110" y="64" text-anchor="middle" font-weight="600">Maya's phone</text>
+          <text x="110" y="82" text-anchor="middle" opacity="0.7">shows it at once, pending</text>
+
+          <rect x="20" y="160" width="180" height="58" rx="10" fill="none" stroke="currentColor"/>
+          <text x="110" y="184" text-anchor="middle" font-weight="600">Jordan's laptop</text>
+          <text x="110" y="202" text-anchor="middle" opacity="0.7">space open, socket live</text>
+
+          <rect x="20" y="300" width="180" height="58" rx="10" fill="none" stroke="currentColor"/>
+          <text x="110" y="324" text-anchor="middle" font-weight="600">Kim's phone</text>
+          <text x="110" y="342" text-anchor="middle" opacity="0.7">app in background</text>
+
+          <rect x="330" y="40" width="220" height="110" rx="12" fill="none" stroke-width="2" style="stroke:var(--accent)"/>
+          <text x="440" y="66" text-anchor="middle" font-weight="700" style="fill:var(--accent)">SpaceRoom · "Life"</text>
+          <text x="440" y="88" text-anchor="middle" opacity="0.75">one Durable Object per space</text>
+          <text x="440" y="106" text-anchor="middle" opacity="0.75">SQLite: messages, items, log</text>
+          <text x="440" y="132" text-anchor="middle" font-weight="600">assigns #812</text>
+
+          <rect x="330" y="214" width="220" height="56" rx="10" fill="none" stroke="currentColor"/>
+          <text x="440" y="238" text-anchor="middle" font-weight="600">UserHub · Kim</text>
+          <text x="440" y="256" text-anchor="middle" opacity="0.7">no device online</text>
+
+          <rect x="660" y="214" width="200" height="56" rx="10" fill="none" stroke="currentColor"/>
+          <text x="760" y="238" text-anchor="middle" font-weight="600">Queue → Notifier</text>
+          <text x="760" y="256" text-anchor="middle" opacity="0.7">quiet hours, grouping</text>
+
+          <rect x="660" y="300" width="200" height="58" rx="10" fill="none" stroke="currentColor"/>
+          <text x="760" y="324" text-anchor="middle" font-weight="600">Expo Push</text>
+          <text x="760" y="342" text-anchor="middle" opacity="0.7">APNs / FCM</text>
+
+          <line x1="200" y1="58" x2="328" y2="58" stroke="currentColor" stroke-width="1.5" marker-end="url(#ah)"/>
+          <text x="264" y="50" text-anchor="middle">1 send + ID</text>
+          <line x1="330" y1="84" x2="202" y2="84" stroke="currentColor" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+          <text x="264" y="102" text-anchor="middle">2 ack #812</text>
+
+          <path d="M 330 136 C 270 150, 250 170, 202 182" fill="none" stroke-width="2" style="stroke:var(--accent)" marker-end="url(#aha)"/>
+          <text x="282" y="178" text-anchor="middle" style="fill:var(--accent)" font-weight="600">3 event #812</text>
+
+          <line x1="440" y1="150" x2="440" y2="212" stroke="currentColor" stroke-width="1.5" marker-end="url(#ah)"/>
+          <text x="452" y="186">4 poke</text>
+
+          <line x1="550" y1="242" x2="658" y2="242" stroke="currentColor" stroke-width="1.5" marker-end="url(#ah)"/>
+          <text x="604" y="234" text-anchor="middle">5 push job</text>
+
+          <line x1="760" y1="270" x2="760" y2="298" stroke="currentColor" stroke-width="1.5" marker-end="url(#ah)"/>
+          <text x="772" y="289">6</text>
+
+          <line x1="660" y1="329" x2="202" y2="329" stroke="currentColor" stroke-width="1.5" marker-end="url(#ah)"/>
+          <text x="430" y="320" text-anchor="middle">7 "Maya in Life: …"</text>
+          <text x="430" y="352" text-anchor="middle" opacity="0.7">8 when Kim opens the app: fetch everything after her last number</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>The space's Durable Object is the only writer, so every message gets the next number (#812) and every device sees the same order. Online devices get the event directly; offline people get a push, and their app catches up from its last number when it opens.</figcaption>
+  </figure>
+</section>
+
+<section id="data">
+  <h2>Where data lives</h2>
+  <div class="cols">
+    <div class="card"><h3>On each device</h3><p>A local copy of every space the person is in, plus a queue of changes not yet confirmed. Today, Upcoming and search across your own spaces are local queries.</p></div>
+    <div class="card"><h3>SpaceRoom (one per space)</h3><p>Members and roles, purpose, items and schedules, done and skip history with reasons, messages, reactions, read positions, and the numbered event log.</p></div>
+    <div class="card"><h3>UserHub (one per person)</h3><p>Their spaces with unread counts, devices and push tokens, Activity inbox, and a personal agenda so reminders and summaries fire from one place.</p></div>
+    <div class="card"><h3>D1 (global)</h3><p>Accounts and sessions, usernames and Buildpair IDs, invite links, Discover listings and offers, integration connections, blocks and reports.</p></div>
+    <div class="card"><h3>R2</h3><p>Avatars, attachments, nightly exports for analytics and disaster recovery.</p></div>
+  </div>
+  <p>Rules that keep Durable Objects cheap and correct: use the Hibernation WebSocket API and alarms (never in-memory timers) so idle rooms aren't billed; store each room's schema version and migrate on wake; create each space with a location hint near its owner.</p>
+</section>
+
+<section id="sync">
+  <h2>The sync protocol</h2>
+  <p>The app never waits on the network to update the screen. Every change is a <b>command</b>; the server answers with numbered <b>events</b>.</p>
+  <ol class="steps">
+    <li><span>The app gives the command its own ID, applies it to the local copy immediately with the shared domain code, and saves it in a pending queue that survives restarts.</span></li>
+    <li><span>The space's room checks membership and permissions, applies the command with the same domain code, appends events with the next numbers, and remembers the command ID so retries are harmless.</span></li>
+    <li><span>The room sends the events to devices with the space open and pokes each member's UserHub, which tells that person's other devices.</span></li>
+    <li><span>Devices apply events in order and drop the matching pending command. A rejected command is rolled back with a clear message.</span></li>
+    <li><span>After a reconnect, a device asks for everything after its last number; one that has been away too long gets a snapshot.</span></li>
+  </ol>
+  <p>Events about "only visible to me" items go only to their owner. Commands and events are versioned Zod schemas in a shared <code>protocol</code> package, so older app versions keep working while new ones roll out.</p>
+</section>
+
+<section id="chat">
+  <h2>What makes the chat seamless</h2>
+  <ul>
+    <li><b>Opens instantly</b> from the last 50 messages stored on the device.</li>
+    <li><b>Sends instantly</b>: shown as pending, queued while offline, never duplicated.</li>
+    <li><b>Never out of order or missing</b>: one numbered sequence per space; a gap triggers a fetch.</li>
+    <li><b>Presence and typing</b> over the open space's socket, throttled and never stored.</li>
+    <li><b>Push only when it helps</b>: none if you're active in that space on any device; grouped ("Alex and 4 others reacted 🔥").</li>
+    <li><b>Completions, skips, rolled-up to-dos and update notes</b> are written by the room into the same log, so the list and the chat can't disagree.</li>
+    <li><b>Phone keyboard and scrolling</b> handled properly (react-native-keyboard-controller, a list anchored to the newest message).</li>
+    <li><b>Attachments</b> upload straight to R2 with a signed URL.</li>
+  </ul>
+</section>
+
+<section id="jobs">
+  <h2>Reminders, notifications and Discover</h2>
+  <ul>
+    <li>Each <b>UserHub</b> sets one alarm for the person's next due thing: a reminder, the morning summary, the weekly review prompt.</li>
+    <li>Each <b>SpaceRoom</b> sets alarms for its own checks: a goal gone quiet (nudges go to supporters only), weekly summary lines, offer expiry.</li>
+    <li>Alarms put jobs on a <b>Queue</b>; the Notifier picks phone push, browser push or email, and applies quiet hours and grouping.</li>
+    <li>With "Show on Discover" on, the room writes a <b>listing to D1</b> (purpose, goal summaries, time zone, wants, top badge; locked items never). "For you" starts as ranked SQL; embeddings can come later.</li>
+  </ul>
+</section>
+
+<section id="integrations">
+  <h2>Integrations, the next big feature</h2>
+  <ul>
+    <li>An Integrations Worker runs the OAuth connect flows (Jira first, then Linear and GitHub) and stores tokens encrypted in D1.</li>
+    <li>Webhooks are verified, queued, and handled by a <b>Workflow</b> (durable, with retries) that turns an outside event into a normal command for the right space. A ticket closed in Jira becomes an item marked done and a chat line.</li>
+    <li>Each tool is an adapter behind one interface; cron-driven polling covers tools without webhooks. Supporters see goal progress, never the backlog.</li>
+    <li>Habit sources (Apple Health, Health Connect, Strava) fit the same shape; Apple Health data is read on the device and sent as commands.</li>
+  </ul>
+</section>
+
+<section id="app">
+  <h2>The app</h2>
+  <ul>
+    <li><b>One Expo app</b> with Expo Router. Routes are real URLs on the web (<code>buildpair.app/spaces/life</code>) and deep links on phones.</li>
+    <li><b>Desktop layouts</b> live in web-only files in the same app: sidebar, margin, popovers, right-click menus, shortcuts, Cmd+K. If React Native Web ever limits the desktop experience, the shared packages make a separate React DOM web app a contained project.</li>
+    <li><b>State</b>: synced data in the sync store, screen-only state in small Zustand stores, one-off requests (Discover search, profiles) through TanStack Query.</li>
+    <li><b>Libraries</b>: Reanimated 4, FlashList v2 or Legend List (spike both for the chat view), expo-image, expo-notifications, expo-secure-store, react-native-keyboard-controller, chrono-node for "dentist friday 3pm", rrule for repeats, a Temporal polyfill for time zones.</li>
+    <li><b>Sign-in and store rules</b>: offering Google on iOS means offering Sign in with Apple too; user content needs report and block; accounts must be deletable inside the app (a Workflow removes the person from D1, every room and R2).</li>
+    <li><b>Landing page</b>: a separate static Astro site on Cloudflare.</li>
+  </ul>
+  <pre class="tree" aria-label="Repository layout">buildpair/
+├── apps/
+│   ├── app/         Expo app: iOS, Android, web
+│   ├── edge/        Workers: api, SpaceRoom, UserHub, notifier, integrations
+│   └── site/        Landing page (Astro)
+├── packages/
+│   ├── protocol/    Zod schemas for commands, events, API (versioned)
+│   ├── domain/      Rules shared by app and server: schedules, habit weeks,
+│   │                rollups, permissions
+│   ├── sync/        App-side sync engine: local store, pending queue, socket
+│   ├── ui/          Design tokens and primitives
+│   └── config/      TypeScript and Biome settings
+├── infra/           Terraform: DNS, WAF, R2, D1, Queues, Turnstile
+└── .github/workflows/</pre>
+  <p>The <code>domain</code> package is the key to correctness: the same code applies a change on the device and in the room, so the two can't drift apart.</p>
+</section>
+
+<section id="cicd">
+  <h2>CI/CD</h2>
+  <p>Tools: pnpm and Turborepo, Biome, TypeScript project references, Vitest (Workers and Durable Objects tested in the real runtime with <code>@cloudflare/vitest-pool-workers</code>), Playwright for the web, Maestro for phone flows, Changesets, Renovate, gitleaks.</p>
+  <div class="tbl wide"><table>
+    <thead><tr><th>Stage</th><th>Trigger</th><th>What runs</th></tr></thead>
+    <tbody>
+      <tr><td>Checks</td><td>Every push and PR</td><td>Typecheck, lint, unit tests, Workers and Durable Object tests, protocol compatibility (old app versions against the new server), sync simulations with many clients and dropped or reordered messages</td></tr>
+      <tr><td>Preview</td><td>Pull request</td><td>Worker versions in a preview environment with its own D1 and URL; the web app on that URL; Playwright against it; an EAS Update on a PR channel with a QR code posted to the PR</td></tr>
+      <tr><td>Staging</td><td>Merge to <code>main</code></td><td>D1 migrations, Worker deploy, smoke tests, EAS Update to staging; Maestro flows nightly</td></tr>
+      <tr><td>Production</td><td>Release tag and approval</td><td>Backward-compatible migrations first; Workers gradual deployment (10% → 50% → 100%) with one-command rollback; JS-only app changes by EAS Update with a staged rollout; native changes through EAS Build and Submit to TestFlight and Play testing, then promotion</td></tr>
+    </tbody>
+  </table></div>
+  <ul>
+    <li>Protected <code>main</code>, required checks, CODEOWNERS, previews torn down when a PR closes, secrets only in GitHub Environments and Cloudflare.</li>
+    <li>iOS builds run on EAS, not GitHub's macOS runners, which keeps Actions within the free minutes.</li>
+    <li>Approval gates on GitHub Environments are free on public repositories; private ones need a paid GitHub plan for required reviewers.</li>
+    <li>Operations: D1 Time Travel and Durable Object point-in-time recovery (30 days), nightly exports to R2, Sentry alerts, billing alerts as a guard on Durable Object costs, a feature flag on every risky feature.</li>
+  </ul>
+</section>
+
+<section id="cost">
+  <h2>Cost at 1,000 daily users</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th class="num">Monthly</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Cloudflare Workers Paid</td><td class="num">$5</td><td>10M Worker requests; Durable Objects 1M requests and 400,000 GB-s; DO SQLite 5 GB; D1 25B rows read, 50M written; Queues; 3,000 emails</td></tr>
+      <tr><td>Cloudflare overage</td><td class="num">$0–5</td><td>Mostly Durable Object requests; 100 incoming WebSocket messages bill as 5 requests, outgoing are free</td></tr>
+      <tr><td>Expo EAS</td><td class="num">$0–19</td><td>Free: 15 iOS + 15 Android builds, updates for 1,000 monthly users; Starter at $19 beyond that</td></tr>
+      <tr><td>Email beyond 3,000</td><td class="num">$0–10</td><td>$0.35 per 1,000; daily summaries opt-in</td></tr>
+      <tr><td>R2, Sentry, PostHog, GitHub</td><td class="num">$0</td><td>Free tiers at this scale</td></tr>
+      <tr><td>Apple Developer Program</td><td class="num">$8</td><td>$99 a year; Google Play is $25 once</td></tr>
+      <tr class="total"><td>Total</td><td class="num">$13–47</td><td>Including Apple's fee</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="alternatives">
+  <h2>Alternatives considered</h2>
+  <div class="tbl wide"><table>
+    <thead><tr><th>Option</th><th>Why it isn't first</th><th>When it would win</th></tr></thead>
+    <tbody>
+      <tr><td>Postgres + Zero 1.0</td><td>Excellent local-first sync, but needs an always-on <code>zero-cache</code> container with a direct replication connection, so Postgres never scales to zero; a second vendor and region; presence still separate</td><td>If we want everything relational with heavy cross-space queries</td></tr>
+      <tr><td>Convex</td><td>Fastest to build and reactive, but one region, $25 per developer per month past 1M calls and 1 GB bandwidth, not offline-first</td><td>If the first release date matters more than latency and cost</td></tr>
+      <tr><td>Supabase</td><td>Postgres, auth and realtime together, but free projects pause after 7 idle days, Pro is $25 with compute billed around the clock, one region, and the sync layer is still ours</td><td>If the team wants plain Postgres with the least setup</td></tr>
+      <tr><td>Firebase</td><td>Realtime and offline SDKs, but NoSQL lock-in and per-read pricing that climbs with live listeners</td><td>If the data were document-shaped and Google-centric</td></tr>
+      <tr><td>AWS</td><td>$100–200 of credits for six months, then more services to wire and pay for (API Gateway WebSockets, Lambda, DynamoDB or RDS), one region</td><td>If a partner or investor requires AWS</td></tr>
+      <tr><td>Hosted chat (Stream and similar)</td><td>Chat is the product and is woven into items; data lives elsewhere; prices jump after free tiers</td><td>If chat were a side feature</td></tr>
+      <tr><td>Flutter, or native apps plus a web app</td><td>Flutter's web output feels less like a website; native means three codebases</td><td>If React Native hit a performance wall</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="risks">
+  <h2>Risks</h2>
+  <div class="tbl wide"><table>
+    <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>Bugs in our own sync layer</td><td>A tiny protocol, shared domain code, simulation tests with bad networks, and building it first</td></tr>
+      <tr><td>Cloudflare lock-in</td><td>Room logic behind a storage interface; standard SQLite and Drizzle schemas; portable Hono code; Postgres reachable later through Hyperdrive</td></tr>
+      <tr><td>Durable Object costs if hibernation breaks</td><td>No timers in rooms (lint rule), alarms only, billing alerts</td></tr>
+      <tr><td>Email Sending is in beta</td><td>An adapter with SES or Resend as drop-in replacements</td></tr>
+      <tr><td>Desktop polish on React Native Web</td><td>Web-only layout files; shared packages keep a React DOM web app possible</td></tr>
+      <tr><td>App store review</td><td>Sign in with Apple, report and block, in-app account deletion, privacy labels from day one</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="order">
+  <h2>Build order</h2>
+  <ol class="steps">
+    <li><span><b>Foundations (week 1):</b> repo, CI with previews, environments, sign-in, a hello-world space on iOS, Android and web.</span></li>
+    <li><span><b>Spaces and chat:</b> SpaceRoom, UserHub, the sync protocol, chat with reactions, the offline queue and push. The riskiest part goes first.</span></li>
+    <li><span><b>Items:</b> to-dos, habits, goals, schedules, natural-language adding, Today, reminders.</span></li>
+    <li><span><b>People:</b> invites, roles, Activity, Supporting, quiet-goal nudges.</span></li>
+    <li><span><b>Discover:</b> listings, offers, requests, profiles, badges, compliments.</span></li>
+    <li><span><b>Desktop extras and beta:</b> Cmd+K, Upcoming, weekly review, polish.</span></li>
+    <li><span><b>Integrations:</b> Jira first.</span></li>
+  </ol>
+  <h3>Decisions for you</h3>
+  <ul>
+    <li>The Buildpair domain (needed for links, deep links and email reputation).</li>
+    <li>Public or private repository (public gets free code scanning and approval gates).</li>
+    <li>Sign-in methods at launch (recommended: email code, Apple, Google).</li>
+    <li>How to ask EU users for analytics consent.</li>
+  </ul>
+</section>
+
+<section id="sources">
+  <h2>Sources</h2>
+  <ul class="sources">
+    <li>Cloudflare: <a href="https://developers.cloudflare.com/workers/platform/pricing/">Workers pricing</a>, <a href="https://developers.cloudflare.com/durable-objects/platform/pricing">Durable Objects pricing</a>, <a href="https://developers.cloudflare.com/changelog/2026-01-07-durable-objects-sqlite-storage-billing">DO SQLite billing</a>, <a href="https://developers.cloudflare.com/d1/platform/pricing/">D1 pricing</a>, <a href="https://developers.cloudflare.com/changelog/2026-02-04-queues-free-plan/">Queues on the free plan</a>, <a href="https://developers.cloudflare.com/changelog/post/2026-04-16-email-sending-public-beta/">Email Sending beta</a>, <a href="https://developers.cloudflare.com/email-service/platform/pricing/">Email Service pricing</a></li>
+    <li>Expo: <a href="https://expo.dev/changelog/sdk-57">SDK 57</a>, <a href="https://expo.dev/changelog/sdk-55">SDK 55</a>, <a href="https://docs.expo.dev/billing/plans/">plans</a></li>
+    <li>Precedents: <a href="https://github.com/tldraw/tldraw-sync-cloudflare">tldraw sync on Durable Objects</a>, <a href="https://github.com/bluesky-social/social-app">Bluesky social-app</a></li>
+    <li>Libraries: <a href="https://npmjs.com/package/partyserver">PartyServer and partysocket</a>, <a href="https://infoq.com/news/2026/06/zero-version-1">Zero 1.0</a>, <a href="https://zero.rocicorp.dev/docs/deployment">Zero deployment</a></li>
+    <li>Alternatives: <a href="https://www.convex.dev/plans">Convex plans</a>, <a href="https://makerkit.dev/blog/saas/supabase-pricing">Supabase pricing overview</a>, <a href="https://aws.amazon.com/free">AWS Free Tier</a></li>
+    <li>Tooling: <a href="https://resources.github.com/actions/2026-pricing-changes-for-github-actions/">GitHub Actions 2026 pricing</a>, <a href="https://posthog.com/blog/posthog-vs-sentry">PostHog and Sentry free tiers</a></li>
+  </ul>
+</section>
+
+<footer>Source file: <code>docs/architecture/buildpair-architecture.md</code> in the goalbuddy repository, intended to become <code>ARCHITECTURE.md</code> in the new <code>buildpair</code> repository.</footer>
+</div>

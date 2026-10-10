@@ -53,7 +53,7 @@ Plenty of apps track to-dos; Buildpair is about the people supporting them. It i
 - Retired: co-op mode (two people copying the same goal) and the swipe deck.
 - Deferred: social sign-in (Google/GitHub), developer-only integrations (commits, deploys, API, CLI), revenue verification.
 - The 8 selectable color themes move into a settings menu; the Buildpair theme is the default.
-- Hosting is planned on AWS; email from Amazon SES; the domain `goalbuddy.app` is registered at Cloudflare.
+- Built in a new repository on Cloudflare (Workers, a Durable Object per space and per user, D1, R2) with one Expo app for iOS, Android and web; see `docs/architecture/buildpair-architecture.md`. The domain `goalbuddy.app` is registered at Cloudflare.
 
 ## Brand Commitments
 

@@ -2,14 +2,15 @@
 
 Design work for rebranding GoalBuddy as **Buildpair**. No app code has changed yet; everything so far is product decisions, research and screen mockups.
 
-> **RESUME HERE (next session): review the desktop web screens with the owner, then the design system.**
-> All 14 desktop web screens are drawn and simplified after the owner's first review (spaces are now chat-first) in `docs/design/buildpair-web.html` (live copy: https://claude.ai/artifact/8sGnN5pw9Fz5uBV7McrJAV), with a parity checklist mapping every phone screen to its web version. Next: owner feedback on the web screens and the open web questions in section 4, then section 2 (design system).
+> **RESUME HERE (next session): owner review of the architecture, then create the new `buildpair` repo.**
+> Clean-slate architecture: `docs/architecture/buildpair-architecture.md` (live page: https://claude.ai/artifact/2ouhaieSYMSy3oFrVPUSJP). One Expo app; Cloudflare Workers with a Durable Object per space (chat and sync) and per user; D1 and R2; GitHub Actions + EAS. Next: the owner's answers to its open decisions (domain, public/private repo, sign-in methods, EU analytics consent), then milestone 1 (foundations) in a new repo. The next big product feature after the core is integrations (Jira first).
 
 ## Where everything is
 
 | What | Where |
 |---|---|
 | Product record (source of truth for what Buildpair is) | `PRODUCT.md` (written with the Impeccable `init` template) |
+| Architecture for the new repo (stack, sync, chat, CI/CD, costs) | `docs/architecture/buildpair-architecture.md`. Live page: https://claude.ai/artifact/2ouhaieSYMSy3oFrVPUSJP |
 | Desktop web screens (14 screens and a parity checklist) | `docs/design/buildpair-web.html`. Live copy: https://claude.ai/artifact/8sGnN5pw9Fz5uBV7McrJAV |
 | All current phone screens, with explanations | `docs/design/buildpair-screens.html` (open in a browser). Live copy: https://claude.ai/artifact/RjgGwJC5qCx16sWVwUmEK1 |
 | Earlier explorations (superseded, kept for reference) | `docs/design/explorations/buildpair-directions.html` (visual directions; "Margin Notes" was chosen), `docs/design/explorations/buildpair-watching-options.html` (Supporting tab layouts; A+C combined was chosen) |
@@ -40,6 +41,7 @@ Layout: sidebar (navigation, your spaces, spaces you support, profile) · the pa
 - [ ] Not drawn for web yet: dark mode, onboarding, empty states, focus timer, Pro upgrade
 - [x] Owner review 2026-10-10: "too busy", and spaces should focus on the chat. Done: spaces are chat-first (list in a narrow panel that folds away); sidebar cut to Today, Upcoming, Supporting, Discover and Spaces, with the bell and profile at the bottom; Today's margin shows only "Check in on" and spaces with new messages; selecting and item details moved to Today; fewer chips, buttons and notes throughout
 - [x] Owner follow-up 2026-10-10: the simplified version felt empty and unengaging. Middle ground: spaces stay chat-first, with the space's goals pinned above the chat and the list plus who's around in the side panel; Today brings back goal names, faces, reactions, a weekly-review banner, recent notes and "This week" progress; the sidebar lists the people you support again; Discover, adding and the weekly review regain their extra detail
+- [x] Owner 2026-10-10: removed the Update button from the space chat; updates come from items (menu or action bar)
 - [ ] Redraw phone screen 3 chat-first to match (chat as the main view, the list as a collapsed strip above it)
 
 ## 2. Design system (after web)
@@ -86,6 +88,7 @@ Full detail is in `PRODUCT.md`. In short:
 - **Reputation:** earned badges (Fast responder, Reliable supporter, Finisher) and positive-only compliments. No star ratings of people.
 - **Look:** "Margin Notes" direction; royal blue; serious core, warm edges; avoid dark hacker styling and generic SaaS; Cloudflare-like restraint without copying its brand.
 - **Platforms:** one Expo codebase for iOS, Android and web, adapting to each platform's conventions.
+- **Architecture (2026-10-10):** new repo; Cloudflare Workers, a Durable Object per space and per user, D1, R2, SQLite on devices; GitHub Actions + EAS. Details in `docs/architecture/buildpair-architecture.md`.
 - **Monetization (planned):** free core with sharing always free; Pro (about $4–5/month) for integrations, more themes, focus timer stats and insights; later community plans and paid seasons. No ads.
 - **Deferred:** social sign-in (OAuth), developer integrations beyond Jira, revenue verification.
 
