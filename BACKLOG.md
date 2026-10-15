@@ -2,8 +2,7 @@
 
 Design work for rebranding GoalBuddy as **Buildpair**. No app code has changed yet; everything so far is product decisions, research and screen mockups.
 
-> **RESUME HERE (next session): work continues in the new repo https://github.com/hacka-tron/buildpair.**
-> Milestone 1 (foundations) pushed 2026-10-10: monorepo, sync protocol, Cloudflare Worker with a Durable Object per space, Expo app (email-code sign-in, spaces, live chat, invites), CI/CD with previews. Owner next: the one-time setup in `docs/SETUP.md` of that repo (Cloudflare, Resend, Expo, GitHub environments) so deploys switch on. Build next: milestone 3 (items in full: habits, goals, schedules, Today, reminders). This repo now holds design history only.
+> **RESUME HERE: this repo is design history only. Current work and its backlog live in https://github.com/hacka-tron/buildpair (see its `BACKLOG.md`).**
 
 ## Where everything is
 
